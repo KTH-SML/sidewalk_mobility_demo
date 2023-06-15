@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<launch>
+
+    <!-- Options -->
+    <arg name="use_cuda"            default="true"/>
+    <arg name="enable_bbox_image"   default="false"/>
+
+    <!-- Auxiliary -->
+    <arg name="max_age"             default="30"/>
+    <arg name="aruco_size"          default="0.1"/>
+
+    <!-- Constants -->
+    <arg name="depth_image"     value="/zed/zed_node/depth/depth_registered"/>
+    <arg name="image"           value="/zed/zed_node/rgb/image_rect_color"/>
+
+
+    <!-- Nodes -->
+
+    <include file="$(find zed_wrapper)/launch/zed.launch">
+        <arg name="camera_name" value="zed"/>
+    </include>
+
+    <include file="$(find svea_vision)/launch/object_pose.launch">
+        <!-- Options -->
+        <arg name="use_cuda"            value="$(arg use_cuda)"/>
+        <arg name="enable_bbox_image"   value="$(arg enable_bbox_image)"/>
+        <!-- Consumed topics -->
+        <arg name="image"               value="$(arg image)"/>
+        <arg name="depth_image"         value="$(arg depth_image)"/>
+        <!-- Auxiliary -->
+        <arg name="max_age"             value="$(arg max_age)"/>
+    </include>
+
+    <include file="$(find svea_vision)/launch/aruco_detect.launch">
+        <!-- Consumed topics -->
+        <arg name="image"       value="$(arg image)"/>
+        <!-- Auxiliary -->
+        <arg name="aruco_size"  value="$(arg aruco_size)"/>
+    </include>
+
+</launch>

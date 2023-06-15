@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<launch>
+
+    <!-- Options -->
+    <arg name="use_cuda"            default="true"/>
+    <arg name="enable_bbox_image"   default="false" />
+
+    <!-- Consumed topics -->
+    <arg name="image"               default="image"/>
+
+    <!-- Produced topics -->
+    <arg name="objects"             default="objects"/>
+    <arg name="bbox_image"          default="bbox_image"/>
+
+    <!-- Auxiliary -->
+    <arg name="max_age"             default="30"/>
+    <arg name="model_path"          default="yolov8n.pt"/>
+
+
+    <!-- Nodes -->
+
+    <node name="object_detect" pkg="svea_vision" type="object_detect.py" output="screen">
+        <!-- Options -->
+        <param name="use_cuda"          value="$(arg use_cuda)" />
+        <param name="enable_bbox_image" value="$(arg enable_bbox_image)" />
+        <!-- Topics -->
+        <param name="sub_image"         value="$(arg image)" />
+        <param name="pub_objects"       value="$(arg objects)" />
+        <param name="pub_bbox_image"    value="$(arg bbox_image)" />
+        <!-- Auxiliary -->
+        <param name="max_age"           value="$(arg max_age)" />
+        <param name="model_path"        value="$(arg model_path)" />
+    </node>
+
+</launch>
