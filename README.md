@@ -19,7 +19,7 @@ The demos will be based on the work done during spring 2023 which includes
 - Kaj Munhoz Arfivdsson's infrastructure sensor
 - ...?
 
-### Outline 
+## Outline 
 
 1. SVEA will drive around a track.
 2. People/Pedestrians will be detected around the track by an infrastructure sensor (ZED stereo vision camera).
