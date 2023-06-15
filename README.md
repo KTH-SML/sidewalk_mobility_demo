@@ -10,8 +10,8 @@
 ## A short description
 This workspace contain the code for the following planned demos:
 - Transportation group (June 29th, 2023)
-- Kista Mobility Day (June 30th, 2023)
-- ITRL Open House (Aug 31st, 2023)
+- Kista Mobility Day (August 30th, 2023)
+- ITRL Open House (August 31st, 2023)
 
 
 The demos will be based on the work done during spring 2023 which includes 
