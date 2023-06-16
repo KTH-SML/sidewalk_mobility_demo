@@ -2,3 +2,5 @@
 # Currently it is empty but it exist in case there is a future need. Projects based
 # on this repository can use this to easily modify the build.
 pyubx2
+scipy
+casadi==3.5.5

@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<launch>
+
+    <!-- Launch file arguments -->
+    <!-- SET DEBUG TO TRUE AT YOUR OWN 'COMPUTATIONALLY DEMANDING' RISK -->
+    <arg name="debug" default="True"/>
+    <arg name="map" default="corridor"/>
+    <arg name="scene_file" default="corridor_scene"/>
+    <arg name="local_costmap_topic" default="/costmap_node/costmap/costmap"/>
+    <arg name="waypoint_topic" default="/target"/>
+    <arg name="dynamic_obstacle_topic" default="/dynamic_obstacles"/>
+    <arg name="static_unmapped_obstacle_topic" default="/static_unmapped_obstacles"/>
+    <arg name="is_mocap" default="true"/>
+    <arg name="svea_name" default="svea2"/>
+    <arg name="is_sim" default="true"/>
+    <arg name="use_rviz" default="true"/>
+    <arg name="remote_rviz" default="false"/>
+    <arg name="obstacle_map" default="corridor_obstacles"/>
+    <arg name="initial_pose_x" default="-2.65488696"/>
+    <arg name="initial_pose_y" default="-1.64422277"/>
+    <arg name="initial_pose_a" default="1.57" />
+    <!-- wrt to map-->
+    <arg name="is_pedsim" default="true" />
+
+    <!-- Start map server -->
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/$(arg map).yaml" output="screen"/>
+
+    <rosparam command="load" file="$(find svea_core)/params/$(arg obstacle_map).yaml" />
+
+    <!-- Start RViz -->
+    <node if="$(eval use_rviz and not remote_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find svea_social_navigation)/rviz/config.rviz"/>
+    <!-- Start pure_pursuit -->
+    <node name="svea_social_navigation" pkg="svea_social_navigation" type="social_navigation.py" output="screen">
+        <param name="use_rviz" value="$(arg use_rviz)"/>
+        <param name="is_sim" value="$(arg is_sim)"/>
+        <param name="remote_rviz" value="$(arg remote_rviz)" />
+        <rosparam>
+            state: [5, 4.1, 1.57, 0] # initial state (x, y, yaw)
+            goal: [3.85, 31.5]
+            static_unmapped_obstacles: []
+            dynamic_obstacles: [] # (x, y, v, theta, x_lb, x_ub, y_lb, y_ub)
+            is_pedsim: True
+            measure: True
+        </rosparam>
+    </node>
+
+    <!-- Run the costmap node -->
+    <node name="tf_sim_lidar_to_base_link" pkg="tf" type="static_transform_publisher" args="0.30 0 0.22 0 0 0 $(arg
+    svea_name)/base_link $(arg svea_name)/sim_lidar 100" />
+    <node name="static_unmapped_obstacle_simulator" pkg="svea_social_navigation" type="static_unmapped_obstacle_simulator.py" />
+    <node name="costmap_node" pkg="costmap_2d" type="costmap_2d_node">
+        <rosparam file="$(find svea_social_navigation)/config/costmap_params_sim.yaml" command="load" ns="costmap" />
+    </node>
+    
+    <!-- Pedestrian Simulator -->
+    <group if="$(arg is_pedsim)">
+        <include file="$(find svea_social_navigation)/launch/pedsim.launch">
+            <arg name="scene_file" value="$(arg scene_file)"/>
+        </include>
+    </group>
+</launch>

@@ -1,0 +1,33 @@
+<launch>
+  <arg name="kbd_teleop" default="false"/>
+  <arg name="rqt_teleop" default="false"/>
+  <arg name="visualize" default="true"/>
+  <arg name="with_robot" default="true"/>
+  <arg name="scene_path" default="/home/federico/universita/thesis_ws/ws/src/svea_social_navigation/src/svea_core/maps/scenes"/>
+  <arg name="scene_file" default="scene"/>
+  <arg name="simulation_factor" default="1.0"/> <!-- Speed up -->
+  <arg name="update_rate" default="25.0"/> <!-- Hz -->
+  <arg name="robot_mode" default="0"/>
+  <arg name="max_robot_speed" default="1.7"/>
+  
+  <!-- Simulator -->
+  <include file="$(find pedsim_simulator)/launch/simulator.launch">
+    <arg name="kbd_teleop" value="$(arg kbd_teleop)"/>
+    <arg name="rqt_teleop" value="$(arg rqt_teleop)"/>
+    <arg name="scene_file" value="$(arg scene_path)/$(arg scene_file).xml"/>
+    <arg name="with_robot" value="$(arg with_robot)"/>
+    <arg name="simulation_factor" value="$(arg simulation_factor)"/>
+    <arg name="update_rate" value="$(arg update_rate)"/>
+    <arg name="default_queue_size" value="10"/>
+    <arg name="enable_groups" value="true"/>
+    <arg name="robot_base_frame_id" value="svea2/base_link"/>
+    <arg name="frame_id" value="map"/>
+    <arg name="robot_mode" value="$(arg robot_mode)"/>
+    <arg name="max_robot_speed" default="$(arg max_robot_speed)"/>
+  </include>
+
+  <!-- Visualizer -->
+  <node name="pedsim_visualizer" type="pedsim_visualizer_node" pkg="pedsim_visualizer" output="screen">
+    <param name="walls_marker_scale" type="double" value="0.05" />
+  </node>
+</launch>
