@@ -4,7 +4,7 @@
     <!-- Launch file arguments -->
     <!-- SET DEBUG TO TRUE AT YOUR OWN 'COMPUTATIONALLY DEMANDING' RISK -->
     <arg name="debug" default="True"/>
-    <arg name="map" default="sml_planner"/>
+    <arg name="map" default="sml"/>
     <arg name="scene_file" default="sml_scene"/>
     <arg name="local_costmap_topic" default="/costmap_node/costmap/costmap"/>
     <arg name="waypoint_topic" default="/target"/>
@@ -15,17 +15,15 @@
     <arg name="is_sim" default="true"/>
     <arg name="use_rviz" default="true"/>
     <arg name="remote_rviz" default="false"/>
-    <arg name="obstacle_map" default="sml_planner_obstacles"/>
+    <arg name="obstacle_map" default="obstacles"/>
     <arg name="initial_pose_x" default="-2.65488696"/>
     <arg name="initial_pose_y" default="-1.64422277"/>
     <arg name="initial_pose_a" default="1.57" />
     <!-- wrt to map-->
-    <arg name="is_pedsim" default="true" />
+    <arg name="is_pedsim" default="false" />
 
     <!-- Start map server -->
     <node name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/$(arg map).yaml" output="screen"/>
-
-    <rosparam command="load" file="$(find svea_core)/params/$(arg obstacle_map).yaml" />
 
     <!-- Start RViz -->
     <node if="$(eval use_rviz and not remote_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find svea_social_navigation)/rviz/config.rviz"/>
@@ -35,12 +33,11 @@
         <param name="is_sim" value="$(arg is_sim)"/>
         <param name="remote_rviz" value="$(arg remote_rviz)" />
         <rosparam>
-            state: [3.5, 4.1, 1.57, 0] # initial state (x, y, yaw)
-            goal: [3.5, 7.3]
+            state: [-1.6, -2, 0, 0] # initial state (x, y, yaw)
             static_unmapped_obstacles: []
             dynamic_obstacles: [] # (x, y, v, theta, x_lb, x_ub, y_lb, y_ub)
             is_pedsim: True
-            measure: True
+            measure: false
         </rosparam>
     </node>
 
@@ -51,18 +48,6 @@
     <node name="costmap_node" pkg="costmap_2d" type="costmap_2d_node">
         <rosparam file="$(find svea_social_navigation)/config/costmap_params_sim.yaml" command="load" ns="costmap" />
     </node>
-    <!--
-        state: [2.8, 3.1, 0.7853981633974483, 0] # initial state (x, y, yaw)
-            goal: [7.5, 7.5]
-        state: [5.5, 3.85, 1.57, 0] # initial state (x, y, yaw)
-            goal: [6.3, 8]
-
-        state: [7.6, 2.9, 1.57, 0] # initial state (x, y, yaw)
-            goal: [7.6, 6.8]
-
-        static_unmapped_obstacles: [[7, 5.6], [7.2, 5]]
-        dynamic_obstacles: [[5.3, 3.7, 0.3, 0, 5, 6, 3, 5], [5.3, 4.7, 0.3, 0, 5, 6, 3, 5], [8, 1.6, 0.3, 1.57, 7, 9, 1, 2]]
-    -->
     
     <!-- Pedestrian Simulator -->
     <group if="$(arg is_pedsim)">

@@ -5,8 +5,6 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /TF1/Frames1
-        - /Tracking-Visuals1/TrackedPersons1
-        - /Tracking-Visuals1/TrackedGroups1
       Splitter Ratio: 0.5329341292381287
     Tree Height: 1816
   - Class: rviz/Selection
@@ -26,7 +24,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: Lidar Point Cloud
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -183,7 +181,7 @@ Visualization Manager:
       Marker Topic: /svea2/viz_lidar_rays
       Name: Lidar Rays
       Namespaces:
-        "": true
+        {}
       Queue Size: 1
       Value: true
     - Class: rviz/TF
@@ -286,23 +284,12 @@ Visualization Manager:
       Topic: /costmap_node/costmap/footprint
       Unreliable: false
       Value: true
-    - Alpha: 0.30000001192092896
-      Class: rviz/PointStamped
-      Color: 32; 74; 135
-      Enabled: true
-      History Length: 1
-      Name: Waypoints
-      Queue Size: 10
-      Radius: 0.019999999552965164
-      Topic: /waypoints
-      Unreliable: false
-      Value: true
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /static_unmapped_obstacles
       Name: Static Unmapped Obstacles
       Namespaces:
-        static_unmapped_obstacle_simulator: true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
@@ -312,125 +299,6 @@ Visualization Manager:
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
-    - Class: rviz/Group
-      Displays:
-        - Class: rviz/Marker
-          Enabled: false
-          Marker Topic: /pedsim_visualizer/walls
-          Name: Walls
-          Namespaces:
-            {}
-          Queue Size: 0
-          Value: false
-        - Class: rviz/MarkerArray
-          Enabled: true
-          Marker Topic: /pedsim_visualizer/waypoints
-          Name: Pedestrian Waypoints
-          Namespaces:
-            {}
-          Queue Size: 100
-          Value: true
-      Enabled: true
-      Name: Pedsim-Visuals
-    - Class: rviz/Group
-      Displays:
-        - Alpha: 1
-          Class: spencer_tracking_rviz_plugin/TrackedPersons
-          Color: 130; 130; 130
-          Color map offset: 0
-          Color transform: SRL Tracking Colors
-          Delete after no. cycles: 5
-          Enabled: true
-          Excluded person IDs: ""
-          Font color: 255; 255; 255
-          Font color style: Same color
-          Font scale: 2
-          History as line:
-            Line width: 0.05000000074505806
-            Value: true
-          History size: 10
-          Included person IDs: ""
-          Min. history point distance: 0.4000000059604645
-          Missed alpha: 1
-          Name: TrackedPersons
-          Occlusion alpha: 1
-          Queue Size: 10
-          Render covariances:
-            Line width: 0.10000000149011612
-            Value: false
-          Render detection IDs: false
-          Render history: true
-          Render person visual: true
-          Render track IDs: true
-          Render track state: false
-          Render velocities: true
-          Show DELETED tracks: false
-          Show MATCHED tracks: true
-          Show MISSED tracks: true
-          Show OCCLUDED tracks: true
-          Style:
-            Line width: 0.05000000074505806
-            Scaling factor: 1
-            Value: Cylinders
-          Topic: /pedsim_visualizer/tracked_persons
-          Unreliable: false
-          Value: true
-          Z offset:
-            Use Z position from message: false
-            Value: 0
-        - Alpha: 0.699999988079071
-          Class: spencer_tracking_rviz_plugin/TrackedGroups
-          Color: 130; 130; 130
-          Color map offset: 0
-          Color transform: Flat
-          Connect group members: true
-          Enabled: true
-          Excluded group IDs: ""
-          Excluded person IDs: ""
-          Font color: 255; 255; 255
-          Font color style: Same color
-          Font scale: 2
-          Global history size: 5
-          Group ID Z offset: 2
-          Included group IDs: ""
-          Included person IDs: ""
-          Name: TrackedGroups
-          Occlusion alpha: 1
-          Queue Size: 10
-          Render group IDs:
-            Hide IDs of single-person groups: false
-            Value: true
-          Render history: false
-          Single-person groups in constant color: false
-          Style:
-            Line width: 0.05000000074505806
-            Scaling factor: 1
-            Value: Simple
-          Topic: /pedsim_visualizer/tracked_groups
-          Tracked persons topic: /pedsim_visualizer/tracked_persons
-          Unreliable: false
-          Value: true
-          Z offset:
-            Use Z position from message: false
-            Value: 0
-      Enabled: true
-      Name: Tracking-Visuals
-    - Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.10000000149011612
-      Class: rviz/Pose
-      Color: 255; 25; 0
-      Enabled: true
-      Head Length: 0.30000001192092896
-      Head Radius: 0.10000000149011612
-      Name: Pedestrian Mocap Pose
-      Queue Size: 10
-      Shaft Length: 1
-      Shaft Radius: 0.05000000074505806
-      Shape: Arrow
-      Topic: /qualisys/pedestrian/pose
-      Unreliable: false
       Value: true
   Enabled: true
   Global Options:
@@ -468,9 +336,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 13.366671562194824
-        Y: 11.404762268066406
-        Z: -3.140305757522583
+        X: 2.2576611042022705
+        Y: 2.0153908729553223
+        Z: -9.266955375671387
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false

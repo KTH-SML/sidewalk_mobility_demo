@@ -5,23 +5,19 @@ import rospy
 from copy import deepcopy
 
 # SVEA imports
-from svea.controllers.mpc import MPC
+from svea.controllers.social_mpc import SMPC
 from svea.sensors import Lidar
 from svea.models.bicycle_mpc import BicycleModel
 from svea.models.bicycle import SimpleBicycleModel
 from svea.states import VehicleState
 from svea.simulators.sim_SVEA import SimSVEA
-from svea.interfaces import LocalizationInterface, ActuationInterface
+from svea.interfaces import LocalizationInterface, ActuationInterface, PlannerInterface
 from svea_mocap.mocap import MotionCaptureInterface
 from svea.data import RVIZPathHandler
-from svea_planners.astar import AStarPlanner, AStarWorld
-from svea_planners.planner_interface import PlannerInterface
-from svea_planners.bspline_smoother import BSpline
 from svea_social_navigation.apf import ArtificialPotentialFieldHelper
 from svea_social_navigation.static_unmapped_obstacle_simulator import StaticUnmappedObstacleSimulator
 from svea_social_navigation.dynamic_obstacle_simulator import DynamicObstacleSimulator
-from svea_social_navigation.sfm_helper import SFMHelper
-from svea_social_navigation.measurement_node import SocialMeasurement
+from svea_social_navigation.track import Track, Arc
 
 # ROS imports
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
@@ -120,12 +116,10 @@ class SocialNavigation(object):
         self.REMOTE_RVIZ = load_param('~remote_rviz', False)
         self.IS_MOCAP = load_param('~is_mocap', True)
         self.STATE = load_param('~state', [0, 0, 0, 0])
-        self.GOAL = load_param('~goal', [0, 0])
         self.SVEA_NAME = load_param('~svea_name', 'svea2')
-        self.DYNAMIC_OBSTACLE_TOPIC = load_param('~dynamic_obstacle_topic', '/dynamic_obstacle')
         self.DEBUG = load_param('~debug', False)
         self.IS_PEDSIM = load_param('~is_pedsim', False)
-        self.MEASURE = load_param('~measure', True)
+        print(self.IS_SIM)
         # Define publisher for MPC predicted path
         self.pred_path_pub = rospy.Publisher("pred_path", Path, queue_size=1, latch=True)
 
@@ -141,11 +135,26 @@ class SocialNavigation(object):
 
         # Define planner interface
         self.pi = PlannerInterface(theta_threshold=0.3)
-        # Initialize planner world
-        delta, limits, obstacles = self.pi.get_planner_world()
-        self.world = AStarWorld(delta=delta, limit=limits, obstacles=np.multiply([delta[0], delta[1], 1], np.array(obstacles)).tolist(), obs_margin=0.2)
-        # Initialize planner
-        self.planner = AStarPlanner(self.world, [self.state.x, self.state.y], [self.GOAL[0], self.GOAL[1]])
+
+        # Create path using track.py
+        self.INTERSECTION_1 = [+2.5, -1.0, +np.pi/2]
+        self.CIRCUIT = [
+            [1.0, 90],
+            [3.0],
+            [1.0, 90],
+            [1.0, 90],
+            [3.0],
+            [1.0, 90],
+        ]
+
+        self.track = Track([
+            Arc(*arc) if len(arc) == 1 else
+            Arc.from_circle_segment(*arc)
+            for arc in self.CIRCUIT
+        ], *self.INTERSECTION_1, POINT_DENSITY=100)
+        # Make so the path iterates over itself
+        self.track.connects_to(self.track)
+        self.path_from_track = np.array(self.track.cartesian).T
 
         # Initialize dynamic obstacles simulator
         self.DYNAMIC_OBS = load_param('~dynamic_obstacles', [])
@@ -156,12 +165,6 @@ class SocialNavigation(object):
         self.STATIC_UNMAPPED_OBS = load_param('~static_unmapped_obstacles', [])
         self.static_unmapped_obs_simulator = StaticUnmappedObstacleSimulator(self.STATIC_UNMAPPED_OBS)
         self.static_unmapped_obs_simulator.publish_obstacle_msg()
-
-        # Initialize social force model helper
-        self.sfm_helper = SFMHelper(is_pedsim=self.IS_PEDSIM)
-
-        # Initialize measurement class
-        self.measurements = SocialMeasurement(write=True)
 
         if self.IS_SIM:
             # Simulator needs a model to simulate
@@ -197,12 +200,12 @@ class SocialNavigation(object):
         x_b = np.array([np.inf, np.inf, 0.7, np.inf])
         u_b = np.array([0.5, np.deg2rad(40)])
         # Create MPC controller object
-        self.controller = MPC(
+        self.controller = SMPC(
             self.model,
             N=self.WINDOW_LEN,
-            Q=[20, 20, 50, .1],
+            Q=[70, 70, 50, 0],
             R=[1, .5],
-            S=[120, 150, 50],
+            S=[0, 0, 200],
             x_lb=-x_b,
             x_ub=x_b,
             u_lb=-u_b,
@@ -237,37 +240,20 @@ class SocialNavigation(object):
             return None
 
     def plan(self):
-        # Compute safe global path
-        planner_path = self.planner.create_path()
-        # For mich's integration
-        #self.pi.get_path_from_topic()
-        # Get path 
-        # Init path smoother
-        self.bspline_smoother = BSpline(planner_path)
-        b_spline_path = np.array(self.bspline_smoother.interpolate_b_spline_path(degree=3)).T
-        # Get smoothed path and extract social waypoints (other possible nice combination of parameters for path
-        # smoothing is interpolate=False and degree=4)
-        #b_spline_path = np.array(self.pi.get_social_waypoints(interpolate=True))
         # Create array for MPC reference
-        self.path = np.zeros((np.shape(b_spline_path)[0], 4))
-        self.path[:, 0] = b_spline_path[:, 0]
-        self.path[:, 1] = b_spline_path[:, 1]
-        self.path[:, 2] = [self.STRAIGHT_SPEED if abs(curv) < 1e-2 else self.TURN_SPEED for curv in b_spline_path[:, 3]]
-        self.path[:, 3] = b_spline_path[:, 2]
+        self.path = np.zeros((np.shape(self.path_from_track)[0], 4))
+        self.path[:, 0] = self.path_from_track[:, 0]
+        self.path[:, 1] = self.path_from_track[:, 1]
+        self.path[:, 2] = 0.3
+        self.path[:, 3] = 0
         # Init visualize path interface
         self.pi.initialize_path_interface()
         # Re-initialize path interface to visualize on RVIZ socially aware path
         self.pi.set_points_path(self.path[:, 0:2])
         print(f'Social navigation path: {self.path[:, 0:2]} size, {np.shape(self.path)[0]}')
 
-        # If debug mode is on, publish map's representation on RVIZ
-        if self.DEBUG:
-            self.pi.publish_internal_representation()
         # Publish global path on rviz
         self.pi.publish_path()
-        # If measurements are on, save global path
-        if self.MEASURE:
-            self.measurements.add_global_path(self.path)
             
     def _visualize_data(self, x_pred, y_pred, velocity, steering):
         # Visualize predicted local tracectory
@@ -324,26 +310,7 @@ class SocialNavigation(object):
         # Initialize empty pedestrian array
         pedestrians = []
         local_pedestrians_mpc = np.full((4, self.MAX_N_PEDESTRIANS), np.array([[-100000.0, -100000.0, 0, 0]]).T)
-        # Acquire mutex
-        self.sfm_helper.mutex.acquire()
-        # If pedsim is being used
-        if self.IS_PEDSIM:
-            if self.MEASURE: id = 0
-            # For every pedestrian, insert it into the array (necessary since in sfm pedestrians are stored in a dict)
-            for p in self.sfm_helper.pedestrian_states:
-                pedestrians.append(self.sfm_helper.pedestrian_states[p])
-                # If measuring mode is active, add pedestrian pose to file
-                if self.MEASURE:
-                    self.measurements.add_pedestrian_pose(id, np.array(pedestrians)[-1, :], rospy.get_time())
-                    id += 1
-        else:
-            # If mocap is being used
-            pedestrians.append([self.sfm_helper.pedestrian_localizer.state.x, self.sfm_helper.pedestrian_localizer.state.y, self.sfm_helper.pedestrian_localizer.state.v, self.sfm_helper.pedestrian_localizer.state.yaw])
-            # If measuring mode is active, add pedestrian pose to file
-            if self.MEASURE:
-                self.measurements.add_pedestrian_pose(0, np.array(pedestrians)[-1, :], rospy.get_time())
-        # Release mutex
-        self.sfm_helper.mutex.release()
+        # TODO: get pedestrians position
         # Keep only pedestrians that are in the local costmap
         local_pedestrians = self.apf.get_local_obstacles(pedestrians)
         # Insert them into MPC structure
@@ -358,8 +325,7 @@ class SocialNavigation(object):
         :return: True if the node is still running, False otherwise
         :rtype: boolean
         """
-        distance = np.linalg.norm(np.array(self.path[-1, 0:2]) - np.array([self.x0[0], self.x0[1]]))
-        return not (rospy.is_shutdown() or distance < self.GOAL_THRESH)
+        return not rospy.is_shutdown()
 
     def run(self):
         """
@@ -370,10 +336,9 @@ class SocialNavigation(object):
         # Spin until alive
         while self.keep_alive():
             self.spin()
-            rospy.sleep(0.1)
-        # If measuring mode is active, then close all files, when experiment is done
-        if self.MEASURE:
-            self.measurements.close_files()
+            # TODO: check that sleep is necessary when running on real svea
+            if not self.IS_SIM:
+                rospy.sleep(0.1)
         print('--- GOAL REACHED ---')
 
     def spin(self):
@@ -389,9 +354,6 @@ class SocialNavigation(object):
         else:
             self.x0 = [self.sim_model.state.x, self.sim_model.state.y, self.sim_model.state.v, self.sim_model.state.yaw]
         print(f'State: {self.x0}')
-        # If measuring mode is active, add robot pose to file
-        if self.MEASURE:
-            self.measurements.add_robot_pose(self.x0, rospy.get_time())
 
         # Get local static unmapped obstacles, local dynamic obstacles, local pedestrians
         local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc = self.get_local_agents()
@@ -409,6 +371,7 @@ class SocialNavigation(object):
             u, predicted_state = self.controller.get_ctrl(self.x0, last_iteration_points[:, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
         else:
             u, predicted_state = self.controller.get_ctrl(self.x0, self.path[self.waypoint_idx:self.waypoint_idx + self.WINDOW_LEN + 1, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
+        #u, predicted_state = self.controller.get_ctrl(self.x0, self.path[self.waypoint_idx, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
 
         # Get optimal velocity (by integrating once the acceleration command and summing it to the current speed) and
         # steering controls
