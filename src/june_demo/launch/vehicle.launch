@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<launch>
+
+    <!-- Launch file arguments -->
+    <arg name="name"            default="svea7"/>
+    <arg name="map"             default="sml"/>
+    <arg name="is_sim"          default="true"/>
+    <arg name="use_rviz"        default="true"/>
+    <arg name="start_rviz"      default="false"/>
+
+    <!-- Initial position of SVEA7 -->
+    <arg if="$(eval name == 'svea7')" name="x0"  default="+1.0"/>
+    <arg if="$(eval name == 'svea7')" name="y0"  default="-2.0"/>
+    <arg if="$(eval name == 'svea7')" name="a0"  default="0.00" /> <!-- wrt to map-->
+
+    <!-- Start map server -->
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/$(arg map).yaml" output="screen"/>
+
+    <!-- If is_sim equal to false, then include all these tags-->
+    <group unless="$(arg is_sim)">
+
+        <!-- Start low-level interface -->
+        <node name="serial_node" pkg="rosserial_python" type="serial_node.py">
+            <param name="port" value="/dev/ttyACM0"/>
+            <param name="baud" value="250000"/>
+        </node>
+
+        <!-- Start localization -->
+        <include file="$(find svea_sensors)/launch/localize.launch">
+            <arg name="initial_pose_x" value="$(arg x0)" />
+            <arg name="initial_pose_y" value="$(arg y0)" />
+            <arg name="initial_pose_a" value="$(arg a0)" />
+        </include>
+    </group>
+
+    <!-- Start NATS -->
+    <node name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
+        <rosparam subst_value="true">
+        host: sml-wan.asuscomm.com
+        subscribers:
+          - sensor/objects
+        </rosparam>
+    </node>
+
+    <!-- Start RViz -->
+    <node if="$(eval use_rviz and start_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find svea_core)/rviz/SVEA_floor2.rviz"/>
+
+    <!-- Start pure_pursuit -->
+    <node name="vehicle" pkg="june_demo" type="vehicle.py" output="screen">
+        <rosparam subst_value="true">
+        name:       $(arg name)
+        use_rviz:   $(arg use_rviz)
+        is_sim:     $(arg is_sim)
+        sim_start: [$(arg x0), $(arg y0), $(arg a0)]
+        </rosparam>
+    </node>
+
+</launch>
