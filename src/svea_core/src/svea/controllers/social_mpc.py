@@ -200,43 +200,43 @@ class SMPC(object):
             self.F_r_dynamic.append(rep_force_dynamic)
             self.cost += self.S[1, 1] * self.F_r_dynamic[k]
 
-            sfm_x = 0
-            sfm_y = 0
+            #sfm_x = 0
+            #sfm_y = 0
             sfm = 0
             x_y = casadi.MX(2, 1)
             e_p = casadi.MX(2, 1)
-            v_ego = casadi.MX(2, 1)
-            v_ped = casadi.MX(2, 1)
+            #v_ego = casadi.MX(2, 1)
+            #v_ped = casadi.MX(2, 1)
             for i in range(self.n_pedestrians):
-                x_y[0], x_y[1] = self.predict_position(self.pedestrians_pos[:, i], k) 
-                v_ego[0] = self.x[0, k] + self.x[2, k] * casadi.cos(self.x[3, k])
-                v_ego[1] = self.x[1, k] + self.x[2, k] * casadi.sin(self.x[3, k])
-                v_ped[0] = x_y[0] + self.pedestrians_pos[2, i] * casadi.cos(self.pedestrians_pos[3, i])
-                v_ped[1] = x_y[1] + self.pedestrians_pos[2, i] * casadi.sin(self.pedestrians_pos[3, i])
-                d_ego_p = self.x[0:2, k] - x_y
-                n_ego_p = d_ego_p / casadi.norm_2(d_ego_p)
-                e_p[0] = self.pedestrians_pos[2, i] * casadi.cos(self.pedestrians_pos[3, i])
-                e_p[1] = self.pedestrians_pos[2, i] * casadi.sin(self.pedestrians_pos[3, i])
-                y_ego_p = self.pedestrians_pos[2, i] * self.DELTA_TIME * e_p
-                cos_phi_ego_p = casadi.dot(e_p, n_ego_p)
-                omega = self.LAMBDA + ((1 - self.LAMBDA) * ((1 + cos_phi_ego_p) / 2))
-                b_ego_p = casadi.sqrt((casadi.norm_2(d_ego_p) + casadi.norm_2(d_ego_p - ((v_ped - v_ego) * self.DELTA_TIME))) ** 2 - casadi.norm_2((v_ped - v_ego) * self.DELTA_TIME) ** 2) / 2
-                g_ego_p = self.A * casadi.exp(-b_ego_p / self.B) * ((casadi.norm_2(d_ego_p) + casadi.norm_2(d_ego_p - y_ego_p)) / (2 * b_ego_p)) * 0.5 * ((d_ego_p / casadi.norm_2(d_ego_p) + ((d_ego_p - y_ego_p) / casadi.norm_2(d_ego_p - y_ego_p))))
-                sfm_x += (omega * g_ego_p[0]) / (k + 1)
-                sfm_y += (omega * g_ego_p[1]) / (k + 1) 
+                #x_y[0], x_y[1] = self.predict_position(self.pedestrians_pos[:, i], k) 
+                #v_ego[0] = self.x[0, k] + self.x[2, k] * casadi.cos(self.x[3, k])
+                #v_ego[1] = self.x[1, k] + self.x[2, k] * casadi.sin(self.x[3, k])
+                #v_ped[0] = x_y[0] + self.pedestrians_pos[2, i] * casadi.cos(self.pedestrians_pos[3, i])
+                #v_ped[1] = x_y[1] + self.pedestrians_pos[2, i] * casadi.sin(self.pedestrians_pos[3, i])
+                #d_ego_p = self.x[0:2, k] - x_y
+                #n_ego_p = d_ego_p / casadi.norm_2(d_ego_p)
+                #e_p[0] = self.pedestrians_pos[2, i] * casadi.cos(self.pedestrians_pos[3, i])
+                #e_p[1] = self.pedestrians_pos[2, i] * casadi.sin(self.pedestrians_pos[3, i])
+                #y_ego_p = self.pedestrians_pos[2, i] * self.DELTA_TIME * e_p
+                #cos_phi_ego_p = casadi.dot(e_p, n_ego_p)
+                #omega = self.LAMBDA + ((1 - self.LAMBDA) * ((1 + cos_phi_ego_p) / 2))
+                #b_ego_p = casadi.sqrt((casadi.norm_2(d_ego_p) + casadi.norm_2(d_ego_p - ((v_ped - v_ego) * self.DELTA_TIME))) ** 2 - casadi.norm_2((v_ped - v_ego) * self.DELTA_TIME) ** 2) / 2
+                #g_ego_p = self.A * casadi.exp(-b_ego_p / self.B) * ((casadi.norm_2(d_ego_p) + casadi.norm_2(d_ego_p - y_ego_p)) / (2 * b_ego_p)) * 0.5 * ((d_ego_p / casadi.norm_2(d_ego_p) + ((d_ego_p - y_ego_p) / casadi.norm_2(d_ego_p - y_ego_p))))
+                #sfm_x += (omega * g_ego_p[0]) / (k + 1)
+                #sfm_y += (omega * g_ego_p[1]) / (k + 1) 
                 # Narrow corridor very similar, corridor very similar, square a bit worse (maybe some tuning is needed).
                 # Slowest in travel time
 
-                #x_y[0], x_y[1] = self.predict_position(self.pedestrians_pos[:, i], k)
-                #e_p[0] = self.pedestrians_pos[2, i] * casadi.cos(self.pedestrians_pos[3, i])
-                #e_p[1] = self.pedestrians_pos[2, i] * casadi.sin(self.pedestrians_pos[3, i])
-                #n =  (self.x[0:2, k] - self.pedestrians_pos[0:2, i]) / casadi.norm_2(self.x[0:2, k] - self.pedestrians_pos[0:2, i])
-                #omega = 0.59 + (1 - 0.59) * ((1 + casadi.dot(-n, e_p)) / 2)
-                #sfm += (2.66 * casadi.exp(0.65 - casadi.norm_2(self.x[0:2, k] - self.pedestrians_pos[0:2, i]) / 0.79) * omega) / (k + 1)
+                x_y[0], x_y[1] = self.predict_position(self.pedestrians_pos[:, i], k)
+                e_p[0] = self.pedestrians_pos[2, i] * casadi.cos(self.pedestrians_pos[3, i])
+                e_p[1] = self.pedestrians_pos[2, i] * casadi.sin(self.pedestrians_pos[3, i])
+                n =  (self.x[0:2, k] - self.pedestrians_pos[0:2, i]) / casadi.norm_2(self.x[0:2, k] - self.pedestrians_pos[0:2, i])
+                omega = 0.59 + (1 - 0.59) * ((1 + casadi.dot(-n, e_p)) / 2)
+                sfm += (2.66 * casadi.exp(0.65 - casadi.norm_2(self.x[0:2, k] - self.pedestrians_pos[0:2, i]) / 0.79) * omega) / (k + 1)
                 # Using pedestrian preditcted positions: square worse, corridor worse, narrow corridor bit worse.
                 # Overall fastest in travel time. To go back to old version, avoid using pedestrian predicted positions
-            self.F_r_sfm.append(casadi.sqrt((sfm_x ** 2 + sfm_y ** 2) + 0.000001))
-            #self.F_r_sfm.append(sfm)
+            #self.F_r_sfm.append(casadi.sqrt((sfm_x ** 2 + sfm_y ** 2) + 0.000001))
+            self.F_r_sfm.append(sfm)
             self.cost += self.S[2, 2] * self.F_r_sfm[k] 
 
             if k < self.N:

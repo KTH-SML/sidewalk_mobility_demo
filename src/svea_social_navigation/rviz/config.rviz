@@ -5,6 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /TF1/Frames1
+        - /Pedetrians1/Namespaces1
       Splitter Ratio: 0.5329341292381287
     Tree Height: 1816
   - Class: rviz/Selection
@@ -24,7 +25,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: Lidar Point Cloud
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -300,6 +301,14 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /sensor/markers
+      Name: Pedetrians
+      Namespaces:
+        sensor: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 162; 162; 162
@@ -328,7 +337,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 25.075109481811523
+      Distance: 17.08798599243164
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -336,17 +345,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 2.2576611042022705
-        Y: 2.0153908729553223
-        Z: -9.266955375671387
+        X: 0.16597281396389008
+        Y: 2.3238561153411865
+        Z: -9.172800064086914
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0497968196868896
+      Pitch: 1.2747966051101685
       Target Frame: base_link
-      Yaw: 4.58997106552124
+      Yaw: 4.7149739265441895
     Saved: ~
 Window Geometry:
   Displays:

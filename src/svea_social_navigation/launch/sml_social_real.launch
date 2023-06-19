@@ -38,7 +38,7 @@
             goal: [7.5, 7]
             static_unmapped_obstacles: []
             dynamic_obstacles: []
-            is_pedsim: False
+            is_pedsim: True
             measure: False
         </rosparam>
     </node>

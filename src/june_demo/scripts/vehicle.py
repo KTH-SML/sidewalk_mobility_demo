@@ -117,7 +117,7 @@ class SocialNavigation(object):
         self.REMOTE_RVIZ = load_param('~remote_rviz', False)
         self.IS_MOCAP = load_param('~is_mocap', True)
         self.STATE = load_param('~state', [0, 0, 0, 0])
-        self.SVEA_NAME = load_param('~svea_name', 'svea2')
+        self.SVEA_NAME = load_param('~name', 'svea2')
         self.DEBUG = load_param('~debug', False)
         self.IS_PEDSIM = load_param('~is_pedsim', True)
         # Define publisher for MPC predicted path
@@ -199,7 +199,6 @@ class SocialNavigation(object):
         # Create vehicle model object
         self.model = BicycleModel(initial_state=self.x0, dt=self.DELTA_TIME)
         # Define variable bounds
-        # TODO: maybe avoid going backwards (or penalized it very much)
         x_b = np.array([np.inf, np.inf, 0.7, np.inf])
         u_b = np.array([0.5, np.deg2rad(40)])
         # Create MPC controller object

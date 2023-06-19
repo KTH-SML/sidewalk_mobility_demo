@@ -7,18 +7,20 @@
     <arg name="is_sim"          default="true"/>
     <arg name="use_rviz"        default="true"/>
     <arg name="start_rviz"      default="false"/>
+    <arg name="xavier"          default="false"/>
+    <arg name="is_mocap"        default="false"/>
 
     <!-- Initial position of SVEA7 -->
-    <arg if="$(eval name == 'svea7')" name="x0"  default="+1.0"/>
-    <arg if="$(eval name == 'svea7')" name="y0"  default="-2.0"/>
-    <arg if="$(eval name == 'svea7')" name="a0"  default="0.00" /> <!-- wrt to map-->
+    <arg if="$(eval name == 'svea7' or name == 'svea2')" name="x0"  default="-1.6"/>
+    <arg if="$(eval name == 'svea7' or name == 'svea2')" name="y0"  default="-2.0"/>
+    <arg if="$(eval name == 'svea7' or name == 'svea2')" name="v0"  default="0.0"/>
+    <arg if="$(eval name == 'svea7' or name == 'svea2')" name="a0"  default="0.00" /> <!-- wrt to map-->
 
     <!-- Start map server -->
     <node name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/$(arg map).yaml" output="screen"/>
 
     <!-- If is_sim equal to false, then include all these tags-->
     <group unless="$(arg is_sim)">
-
         <!-- Start low-level interface -->
         <node name="serial_node" pkg="rosserial_python" type="serial_node.py">
             <param name="port" value="/dev/ttyACM0"/>
@@ -26,33 +28,68 @@
         </node>
 
         <!-- Start localization -->
-        <include file="$(find svea_sensors)/launch/localize.launch">
-            <arg name="initial_pose_x" value="$(arg x0)" />
-            <arg name="initial_pose_y" value="$(arg y0)" />
-            <arg name="initial_pose_a" value="$(arg a0)" />
-        </include>
+        <group unless="$(arg is_mocap)">
+            <include file="$(find svea_sensors)/launch/localize.launch">
+                <arg name="initial_pose_x" value="$(arg x0)" />
+                <arg name="initial_pose_y" value="$(arg y0)" />
+                <arg name="initial_pose_a" value="$(arg a0)" />
+            </include>
+        </group>
+
+        <!-- If mocap is being used for localization -->
+        <group if="$(arg is_mocap)">
+            <!-- Static Transforms-->
+            <include file="$(find svea_sensors)/launch/transforms.launch">
+                <arg name="xavier" value="$(arg xavier)"/>
+            </include>
+            <node name="tf_lidar_to_base_link" pkg="tf" type="static_transform_publisher" args="0 0 -0.175 0 0 0 $(arg name) base_link 100" />
+            <node name="tf_odom_to_base_link" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 base_link odom 100" />
+        </group>
+
+        <!-- Run the costmap node -->
+        <node name="costmap_node" pkg="costmap_2d" type="costmap_2d_node">
+            <rosparam file="$(find svea_social_navigation)/config/costmap_params_svea.yaml" command="load" ns="costmap" />
+        </node>
+    </group>
+
+    <group if="$(arg is_sim)">
+        <node name="tf_sim_lidar_to_base_link" pkg="tf" type="static_transform_publisher" args="0.30 0 0.22 0 0 0 $(arg name)/base_link $(arg name)/sim_lidar 100" />
+
+        <!-- Run the costmap node -->
+        <node name="costmap_node" pkg="costmap_2d" type="costmap_2d_node">
+            <rosparam file="$(find svea_social_navigation)/config/costmap_params_sim.yaml" command="load" ns="costmap" />
+        </node>
     </group>
 
     <!-- Start NATS -->
-    <node name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
-        <rosparam subst_value="true">
-        host: sml-wan.asuscomm.com
-        subscribers:
-          - sensor/objects
-        </rosparam>
-    </node>
+    <group unless="$(arg is_sim)">
+        <node name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
+            <rosparam subst_value="true">
+            host: sml-wan.asuscomm.com
+            subscribers:
+            - sensor/objects
+            </rosparam>
+        </node>
+    </group>
 
     <!-- Start RViz -->
-    <node if="$(eval use_rviz and start_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find svea_core)/rviz/SVEA_floor2.rviz"/>
+    <node if="$(eval use_rviz and start_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find svea_social_navigation)/rviz/config.rviz"/>
+
+    <!-- Static Unmapped Obstacle Simulator -->
+    <node name="static_unmapped_obstacle_simulator" pkg="svea_social_navigation" type="static_unmapped_obstacle_simulator.py" />
 
     <!-- Start pure_pursuit -->
     <node name="vehicle" pkg="june_demo" type="vehicle.py" output="screen">
+        <param name="use_rviz" value="$(arg use_rviz)"/>
+        <param name="is_sim" value="$(arg is_sim)"/>
+        <param name="remote_rviz" value="$(arg remote_rviz)" />
         <rosparam subst_value="true">
-        name:       $(arg name)
-        use_rviz:   $(arg use_rviz)
-        is_sim:     $(arg is_sim)
-        sim_start: [$(arg x0), $(arg y0), $(arg a0)]
+            state: [$(arg x0), $(arg y0), $(arg a0), $(arg v0)] # initial state (x, y, yaw)
+            static_unmapped_obstacles: []
+            dynamic_obstacles: [] # (x, y, v, theta, x_lb, x_ub, y_lb, y_ub)
+            is_pedsim: True
+            measure: false
         </rosparam>
-    </node>
+    </node> 
 
 </launch>

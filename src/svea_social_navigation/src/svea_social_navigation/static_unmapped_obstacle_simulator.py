@@ -86,6 +86,6 @@ class StaticUnmappedObstacleSimulator(object):
         obstacle_msg = MarkerArray()
         obstacle_msg.markers = self.create_marker_array()
         for i in range(np.shape(self.obs)[0]):
-            obstacle_msg.markers[i] = self.create_marker(self.obs[i, 0], self.obs[i, 1] ,i)
+            obstacle_msg.markers[i] = self.create_marker(self.obs[i, 0], self.obs[i, 1], i)
         self.pub.publish(obstacle_msg)
 
