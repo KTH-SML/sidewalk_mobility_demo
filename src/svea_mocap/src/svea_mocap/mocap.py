@@ -55,7 +55,8 @@ class MotionCaptureInterface(object):
         self.OFFSET_ANGLE = -math.pi/2
         self.T_MATRIX_4 = euler_matrix(0, 0, self.OFFSET_ANGLE)
         # Create rotation matrix given the offset angle and linear misalignment between mocap and map frames
-        self.T_MATRIX_4[0:3,3] = np.transpose(np.array([5.619764999999999, 5.870124000000001, 0]))
+        #self.T_MATRIX_4[0:3,3] = np.transpose(np.array([5.619764999999999, 5.870124000000001, 0]))
+        self.T_MATRIX_4[0:3,3] = np.transpose(np.array([0.0, 0.0, 0]))
 
         # list of functions to call whenever a new state comes in
         self.callbacks = []

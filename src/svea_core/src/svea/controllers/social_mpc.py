@@ -296,7 +296,6 @@ class SMPC(object):
                 print(f'Repulsive force static: {self.opti.debug.value(r_force_static)}')
                 print(f'Repulsive force dynamic: {self.opti.debug.value(r_force_dynamic)}')
                 print(f'SFM: {self.opti.debug.value(r_force_sfm)}')
-            print(f'DEBUG: {self.opti.debug.value(self.test)}')
             self.opti.debug.show_infeasibilities()
             #self.opti.debug.x_describe()
             #self.opti.debug.g_describe()

@@ -94,9 +94,9 @@ def lists_to_pose_stampeds(x_list, y_list, yaw_list=None, t_list=None):
     return poses
 
 class SocialNavigation(object):
-    WINDOW_LEN = 20
+    WINDOW_LEN = 10
     DELTA_TIME = 0.1
-    DELTA_TIME_REAL = 0.3
+    DELTA_TIME_REAL = 0.6
     GOAL_THRESH = 0.2
     STRAIGHT_SPEED = 0.7
     TURN_SPEED = 0.5
@@ -137,7 +137,7 @@ class SocialNavigation(object):
         self.pi = PlannerInterface(theta_threshold=0.3)
 
         # Create path using track.py
-        self.INTERSECTION_1 = [+2.5, -1.0, +np.pi/2]
+        self.INTERSECTION_1 = [+2.5, -0.6, +np.pi/2]
         self.CIRCUIT = [
             [1.0, 90],
             [3.0],
@@ -205,9 +205,9 @@ class SocialNavigation(object):
         self.controller = SMPC(
             self.model,
             N=self.WINDOW_LEN,
-            Q=[50, 50, 1000, 0],
+            Q=[30, 30, 1000, 0],
             R=[1, .5],
-            S=[0, 0, 80],
+            S=[0, 0, 150],
             x_lb=-x_b,
             x_ub=x_b,
             u_lb=-u_b,
@@ -246,7 +246,7 @@ class SocialNavigation(object):
         self.path = np.zeros((np.shape(self.path_from_track)[0], 4))
         self.path[:, 0] = self.path_from_track[:, 0]
         self.path[:, 1] = self.path_from_track[:, 1]
-        self.path[:, 2] = 0.2
+        self.path[:, 2] = 0.4
         self.path[:, 3] = 0
         # Init visualize path interface
         self.pi.initialize_path_interface()
@@ -351,7 +351,7 @@ class SocialNavigation(object):
             self.spin()
             # TODO: check that sleep is necessary when running on real svea
             if not self.IS_SIM:
-                rospy.sleep(0.1)
+                rospy.sleep(0.05)
         print('--- GOAL REACHED ---')
 
     def spin(self):
