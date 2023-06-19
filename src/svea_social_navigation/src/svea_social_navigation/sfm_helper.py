@@ -19,7 +19,7 @@ class SFMHelper(object):
         Init method for the SFMHelper class
         """
         # Get pedestrian topic
-        self.ped_pos_topic = load_param('~pedestrian_position_topic', '/sensor/objects') 
+        self.ped_pos_topic = load_param('~pedestrian_position_topic', '/objectposes') 
         # Create subscriber
         self.ped_sub = rospy.Subscriber(self.ped_pos_topic, StampedObjectPoseArray, self.pedestrian_cb)
         # Empty array of pedestrain positions
@@ -44,19 +44,20 @@ class SFMHelper(object):
         """
         # For every agent in the environment
         for obj in msg.objects:
-            # Transform quaternion into RPY angles
-            r, p, y = euler_from_quaternion([obj.pose.pose.orientation.x, obj.pose.pose.orientation.y, obj.pose.pose.orientation.z, obj.pose.pose.orientation.w])
-            # Suppose 0 speed for every pedestrian
-            v = 0
-            # Create state array
-            state = [obj.pose.pose.position.x, obj.pose.pose.position.y, v, y]
-            # Acquire mutex
-            self.mutex.acquire()
-            # Updata/insert entry in pedestrian states array 
-            self.pedestrian_states.update({obj.object.id: state})
-            # Release mutex
-            self.mutex.release()        
-            self.ped_pos.append([obj.pose.pose.position.x, obj.pose.pose.position.y])
+            if obj.object.label == 'person':
+                # Transform quaternion into RPY angles
+                r, p, y = euler_from_quaternion([obj.pose.pose.orientation.x, obj.pose.pose.orientation.y, obj.pose.pose.orientation.z, obj.pose.pose.orientation.w])
+                # Suppose 0 speed for every pedestrian
+                v = 0
+                # Create state array
+                state = [obj.pose.pose.position.x, obj.pose.pose.position.y, v, y]
+                # Acquire mutex
+                self.mutex.acquire()
+                # Updata/insert entry in pedestrian states array 
+                self.pedestrian_states.update({obj.object.id: state})
+                # Release mutex
+                self.mutex.release()        
+                self.ped_pos.append([obj.pose.pose.position.x, obj.pose.pose.position.y])
         self.publish_obstacle_msg()
 
     def create_marker_array(self):
