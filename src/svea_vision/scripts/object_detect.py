@@ -72,6 +72,9 @@ class object_detect:
 
         self.SUB_IMAGE = load_param('~sub_image', 'image')
         self.SUB_CAMERA_INFO = replace_base(self.SUB_IMAGE, 'camera_info')
+        
+        self.IMAGE_WIDTH = load_param('~image_width', 640)
+        self.IMAGE_HEIGHT = load_param('~image_width', 480)
 
         self.PUB_BBOX_IMAGE = load_param('~pub_bbox_image', 'bbox_image')
         self.PUB_CAMERA_INFO = replace_base(self.PUB_BBOX_IMAGE, 'camera_info')
@@ -127,9 +130,10 @@ class object_detect:
         ## Detect objects
 
         frame = np.frombuffer(image.data, dtype=np.uint8).reshape(image.height, image.width, -1)
+        frame = cv2.resize(frame, (self.IMAGE_WIDTH, self.IMAGE_HEIGHT))
         frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
 
-        result = self.model.predict(frame)[0]
+        result = self.model.predict(frame, conf=0.5, verbose=False)[0]
         result = result.cpu().numpy()
         boxes = result.boxes.xyxy
         conf = result.boxes.conf
@@ -146,8 +150,8 @@ class object_detect:
             u1, v1, u2, v2 = box
 
             # get real pixel coords
-            u1, u2 = [min(image.width, max(0, round(u*image.width))) for u in (u1, u2)]
-            v1, v2 = [min(image.height, max(0, round(v*image.height))) for v in (v1, v2)]
+            u1, u2 = [round(u) for u in (u1, u2)]
+            v1, v2 = [round(v) for v in (v1, v2)]
 
             # do not continue if box has no size
             if u1 != u2 and v1 != v2:
@@ -170,15 +174,17 @@ class object_detect:
                 obj.label = result.names[c]
                 obj.detection_conf = p
                 obj.tracking_conf = tracker.kf.likelihood
+                obj.image_width = self.IMAGE_WIDTH
+                obj.image_height = self.IMAGE_HEIGHT
                 obj.roi.x_offset = u1
                 obj.roi.y_offset = v1
                 obj.roi.width = u2 - u1
                 obj.roi.height = v2 - v1
                 objects.append(obj)
 
-            # if enabled, modify frame (add bounding boxes)
-            if self.ENABLE_BBOX_IMAGE:
-                frame = result.plot()
+        # if enabled, modify frame (add bounding boxes)
+        if self.ENABLE_BBOX_IMAGE:
+            frame = result.plot()
 
         # Publish objects
         if objects:
@@ -194,7 +200,7 @@ class object_detect:
             new_image.width = frame.shape[1]
             new_image.encoding = 'rgb8'
             new_image.step = frame.size // new_image.height
-            new_image.data = frame.tostring()
+            new_image.data = frame.tobytes()
 
             self.pub_bbox_image.publish(new_image)
 

@@ -51,6 +51,8 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>rospy</depend>
   <depend>svea_core</depend>
+  <depend>image_geometry</depend>
+  <depend>aruco_msgs</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

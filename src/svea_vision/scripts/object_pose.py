@@ -93,6 +93,12 @@ class object_pose:
             u2 = u1 + obj.roi.width
             v2 = v1 + obj.roi.height
 
+            # Rescale to depth_map
+            u1 = (u1 * W) // obj.image_width
+            u2 = (u2 * W) // obj.image_width
+            v1 = (v1 * H) // obj.image_height
+            v2 = (v2 * H) // obj.image_height
+
             roi_mask = np.zeros((H, W), dtype=bool)
             roi_mask[v1:v2, u1:u2] = True
 
@@ -117,8 +123,8 @@ class object_pose:
             # 2. get unit vector of projection by `camera_model.projectPixelTo3dRay()`
             # 3. multiply unit vec by distance to get real world coordinates in camera's frame
 
-            u = obj.roi.x_offset + obj.roi.width // 2
-            v = obj.roi.y_offset + obj.roi.height // 2
+            u = (u1 + u2) // 2
+            v = (v1 + v2) // 2
 
             ray = self.camera_model.projectPixelTo3dRay((u, v))
             x, y, z = np.array(ray) * d

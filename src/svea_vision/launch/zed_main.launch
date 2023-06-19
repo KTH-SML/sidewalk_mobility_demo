@@ -4,6 +4,7 @@
     <!-- Options -->
     <arg name="use_cuda"            default="true"/>
     <arg name="enable_bbox_image"   default="false"/>
+    <arg name="enable_aruco"        default="false"/>
 
     <!-- Auxiliary -->
     <arg name="max_age"             default="30"/>
@@ -31,7 +32,7 @@
         <arg name="max_age"             value="$(arg max_age)"/>
     </include>
 
-    <include file="$(find svea_vision)/launch/aruco_detect.launch">
+    <include if="$(arg enable_aruco)" file="$(find svea_vision)/launch/aruco_detect.launch">
         <!-- Consumed topics -->
         <arg name="image"       value="$(arg image)"/>
         <!-- Auxiliary -->
