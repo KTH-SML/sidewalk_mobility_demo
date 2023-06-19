@@ -19,7 +19,7 @@ class SFMHelper(object):
         Init method for the SFMHelper class
         """
         # Get pedestrian topic
-        self.ped_pos_topic = load_param('~pedestrian_position_topic', '/objectposes') 
+        self.ped_pos_topic = load_param('~pedestrian_position_topic', '/sensor/objects') 
         # Create subscriber
         self.ped_sub = rospy.Subscriber(self.ped_pos_topic, StampedObjectPoseArray, self.pedestrian_cb)
         # Empty array of pedestrain positions
@@ -42,9 +42,11 @@ class SFMHelper(object):
         :param msg: message
         :type msg: AgentStates
         """
+        ped_detected = False
         # For every agent in the environment
         for obj in msg.objects:
             if obj.object.label == 'person':
+                ped_detected = True
                 # Transform quaternion into RPY angles
                 r, p, y = euler_from_quaternion([obj.pose.pose.orientation.x, obj.pose.pose.orientation.y, obj.pose.pose.orientation.z, obj.pose.pose.orientation.w])
                 # Suppose 0 speed for every pedestrian
@@ -54,10 +56,13 @@ class SFMHelper(object):
                 # Acquire mutex
                 self.mutex.acquire()
                 # Updata/insert entry in pedestrian states array 
-                self.pedestrian_states.update({obj.object.id: state})
+                self.pedestrian_states.update({0: state})
                 # Release mutex
                 self.mutex.release()        
-                self.ped_pos.append([obj.pose.pose.position.x, obj.pose.pose.position.y])
+                self.ped_pos = [obj.pose.pose.position.x, obj.pose.pose.position.y]
+        if not ped_detected:
+            self.pedestrian_states.pop(0)
+        print(self.pedestrian_states)
         self.publish_obstacle_msg()
 
     def create_marker_array(self):
@@ -109,11 +114,9 @@ class SFMHelper(object):
         """
         Method to publish the array of markers
         """
-        np_ped_pos = np.array(self.ped_pos)
         obstacle_msg = MarkerArray()
         obstacle_msg.markers = self.create_marker_array()
-        for i in range(np.shape(np_ped_pos)[0]):
-            obstacle_msg.markers[i] = self.create_marker(np_ped_pos[i, 0], np_ped_pos[i, 1] ,i)
+        obstacle_msg.markers[0] = self.create_marker(self.ped_pos[0], self.ped_pos[1], 0)
         self.pub.publish(obstacle_msg)
         
     
