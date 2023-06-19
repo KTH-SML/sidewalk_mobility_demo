@@ -3,11 +3,17 @@
 import numpy as np
 
 import rospy
+import tf2_ros
 import message_filters as mf
+from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image, CameraInfo
 from image_geometry import PinholeCameraModel
+from geometry_msgs.msg import PointStamped, Vector3
+from visualization_msgs.msg import Marker
 
 from rsu_msgs.msg import StampedObjectArray, StampedObjectPoseArray, ObjectPose
+from tf_conversions import Quaternion, transformations
+from tf2_geometry_msgs import do_transform_point
 
 
 def load_param(name, value=None):
@@ -41,15 +47,23 @@ class object_pose:
         self.SUB_CAMERA_INFO = replace_base(self.SUB_DEPTH_IMAGE, 'camera_info')
 
         self.PUB_OBJECTPOSES = load_param('~pub_objectposes', 'objectposes')
+        self.PUB_OBJECTMARKERS = load_param('~pub_objectmarkers', 'objectmarkers')
 
         ## Camera model
 
         self.camera_model = PinholeCameraModel()
 
+        ## TF
+
+        self.tf_buf = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buf)
+
         ## Publishers
 
         self.pub_objectposes = rospy.Publisher(self.PUB_OBJECTPOSES, StampedObjectPoseArray, queue_size=10)
         rospy.loginfo(self.PUB_OBJECTPOSES)
+
+        self.pub_objectmarkers = rospy.Publisher(self.PUB_OBJECTMARKERS, Marker, queue_size=10)
 
         ## Subscribers
 
@@ -129,14 +143,23 @@ class object_pose:
             ray = self.camera_model.projectPixelTo3dRay((u, v))
             x, y, z = np.array(ray) * d
 
+            # Create point in camera frame
+            ps = PointStamped()
+            ps.header = object_array.header 
+            ps.point.x = x
+            ps.point.y = y 
+            ps.point.z = z
+
+            # Create point in map frame
+            trans = self.tf_buf.lookup_transform('map', ps.header.frame_id, rospy.Time(0))   
+            ps = do_transform_point(ps, trans)
+
             objpose = ObjectPose()
             objpose.object = obj
             ## NOTE: Message supports these
             # objpose.pose.covariance = ... # float64
             # objpose.pose.pose.orientation = ... # geometry_msgs/Quaternion
-            objpose.pose.pose.position.x = x
-            objpose.pose.pose.position.y = y
-            objpose.pose.pose.position.z = z
+            objpose.pose.pose.position = ps.point
 
             objects.append(objpose)
 
@@ -146,9 +169,26 @@ class object_pose:
 
             objectpose_array = StampedObjectPoseArray()
             objectpose_array.header = object_array.header
+            objectpose_array.header.frame_id = 'map' # we transformed earlier
             objectpose_array.objects = objects
 
             self.pub_objectposes.publish(objectpose_array)
+            self.publish_markers(objectpose_array)
+
+    def publish_markers(self, msg: StampedObjectPoseArray):
+        marker = Marker()
+        marker.header.frame_id = 'map'
+        marker.header.stamp = msg.header.stamp
+        marker.type = Marker.SPHERE_LIST
+        marker.action = 0 
+        marker.pose.orientation.w = 1
+        marker.scale = Vector3(0.2, 0.2, 0.2)
+        marker.color = ColorRGBA(0, 1, 0, 1)
+        marker.lifetime = rospy.Duration(0.5)
+        for objpose in msg.objects:
+            if objpose.object.label == 'person':
+                marker.points.append(objpose.pose.pose.position)
+        self.pub_objectmarkers.publish(marker)
 
 
 if __name__ == '__main__':
