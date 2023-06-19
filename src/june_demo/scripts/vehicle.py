@@ -94,7 +94,7 @@ def lists_to_pose_stampeds(x_list, y_list, yaw_list=None, t_list=None):
     return poses
 
 class SocialNavigation(object):
-    WINDOW_LEN = 10
+    WINDOW_LEN = 20
     DELTA_TIME = 0.1
     DELTA_TIME_REAL = 0.3
     GOAL_THRESH = 0.2
@@ -175,7 +175,7 @@ class SocialNavigation(object):
             # Start the simulator immediately, but paused
             self.simulator = SimSVEA(self.sim_model,
                                      vehicle_name=self.SVEA_NAME,
-                                     dt=self.DELTA_TIME,
+                                     dt=self.DELTA_TIME/10,
                                      run_lidar=True,
                                      start_paused=True).start()
         else:
@@ -205,9 +205,9 @@ class SocialNavigation(object):
         self.controller = SMPC(
             self.model,
             N=self.WINDOW_LEN,
-            Q=[100, 100, 50, 0],
+            Q=[50, 50, 1000, 0],
             R=[1, .5],
-            S=[0, 0, 100],
+            S=[0, 0, 80],
             x_lb=-x_b,
             x_ub=x_b,
             u_lb=-u_b,
@@ -246,7 +246,7 @@ class SocialNavigation(object):
         self.path = np.zeros((np.shape(self.path_from_track)[0], 4))
         self.path[:, 0] = self.path_from_track[:, 0]
         self.path[:, 1] = self.path_from_track[:, 1]
-        self.path[:, 2] = 0.3
+        self.path[:, 2] = 0.2
         self.path[:, 3] = 0
         # Init visualize path interface
         self.pi.initialize_path_interface()
