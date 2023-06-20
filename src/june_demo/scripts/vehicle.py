@@ -205,7 +205,7 @@ class SocialNavigation(object):
         self.controller = SMPC(
             self.model,
             N=self.WINDOW_LEN,
-            Q=[20, 20, 1000, 0],
+            Q=[20, 20, 100, 0],
             R=[1, .5],
             S=[0, 0, 250],
             x_lb=-x_b,
@@ -346,7 +346,6 @@ class SocialNavigation(object):
         """
         # Plan a feasible path
         self.plan()
-        self.waypoint_idx = np.minimum(np.argmin(np.linalg.norm(self.path[:, 0:2] - np.array([self.x0[0], self.x0[1]]), axis=1)) + 1, np.shape(self.path)[0] - 1)
         # Spin until alive
         while self.keep_alive():
             self.spin()
@@ -374,8 +373,7 @@ class SocialNavigation(object):
 
         # Get next waypoint index (by computing offset between robot and each point of the path), wrapping it in case of
         # index out of bounds
-        while np.linalg.norm(self.path[self.waypoint_idx, 0:2] - np.array([self.x0[0], self.x0[1]])) < 0.2:
-            self.waypoint_idx = (self.waypoint_idx + 1) % np.shape(self.path)[0]
+        self.waypoint_idx = np.minimum(np.argmin(np.linalg.norm(self.path[:, 0:2] - np.array([self.x0[0], self.x0[1]]), axis=1)) + 1, np.shape(self.path)[0] - 1)
 
         # If there are not enough waypoints for concluding the path, then fill in the waypoints array with the desiderd
         # final goal

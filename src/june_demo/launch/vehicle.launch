@@ -63,15 +63,13 @@
     </group>
 
     <!-- Start NATS -->
-    <group unless="$(arg is_sim)">
-        <node name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
-            <rosparam subst_value="true">
-            host: sml-wan.asuscomm.com
-            subscribers:
-            - sensor/objects
-            </rosparam>
-        </node>
-    </group> 
+    <node name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
+        <rosparam subst_value="true">
+        host: sml-wan.asuscomm.com
+        subscribers:
+        - sensor/objects
+        </rosparam>
+    </node>
 
     <!-- Start RViz -->
     <node if="$(eval use_rviz and start_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find svea_social_navigation)/rviz/config.rviz"/>
