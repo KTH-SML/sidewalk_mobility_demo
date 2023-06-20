@@ -96,7 +96,7 @@ def lists_to_pose_stampeds(x_list, y_list, yaw_list=None, t_list=None):
 class SocialNavigation(object):
     WINDOW_LEN = 10
     DELTA_TIME = 0.1
-    DELTA_TIME_REAL = 0.6
+    DELTA_TIME_REAL = 0.3
     GOAL_THRESH = 0.2
     STRAIGHT_SPEED = 0.7
     TURN_SPEED = 0.5
@@ -137,7 +137,7 @@ class SocialNavigation(object):
         self.pi = PlannerInterface(theta_threshold=0.3)
 
         # Create path using track.py
-        self.INTERSECTION_1 = [+2.5, -0.75, +np.pi/2]
+        self.INTERSECTION_1 = [+2.5, -0.0, +np.pi/2]
         self.CIRCUIT = [
             [1.0, 90],
             [3.0],
@@ -146,6 +146,17 @@ class SocialNavigation(object):
             [3.0],
             [1.0, 90],
         ]
+        #self.CIRCUIT = [
+        #    [0.7, 45],
+        #    [2.2],
+        #    [0.7, 90],
+        #    [2.2],
+        #    [0.7, 90],
+        #    [2.2],
+        #    [0.7, 90],
+        #    [2.2],  
+        #    [0.7, 90],
+        #]
 
         self.track = Track([
             Arc(*arc) if len(arc) == 1 else
@@ -205,9 +216,9 @@ class SocialNavigation(object):
         self.controller = SMPC(
             self.model,
             N=self.WINDOW_LEN,
-            Q=[20, 20, 100, 0],
+            Q=[20, 20, 200, 0],
             R=[1, .5],
-            S=[0, 0, 250],
+            S=[0, 0, 100],
             x_lb=-x_b,
             x_ub=x_b,
             u_lb=-u_b,
