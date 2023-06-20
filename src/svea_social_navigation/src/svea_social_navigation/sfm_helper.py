@@ -22,8 +22,6 @@ class SFMHelper(object):
         self.ped_pos_topic = load_param('~pedestrian_position_topic', '/sensor/objects') 
         # Create subscriber
         self.ped_sub = rospy.Subscriber(self.ped_pos_topic, StampedObjectPoseArray, self.pedestrian_cb)
-        # Empty array of pedestrain positions
-        self.pedestrian_states = {}
         # Pedestrian position array
         self.ped_pos = []
         # Marker array publisher for visualization purposes
@@ -42,7 +40,7 @@ class SFMHelper(object):
         :param msg: message
         :type msg: AgentStates
         """
-        ped_detected = False
+        self.ped_pos = []
         # For every agent in the environment
         for obj in msg.objects:
             if obj.object.label == 'person':
@@ -56,13 +54,10 @@ class SFMHelper(object):
                 # Acquire mutex
                 self.mutex.acquire()
                 # Updata/insert entry in pedestrian states array 
-                self.pedestrian_states.update({0: state})
+                self.ped_pos.append(state)
                 # Release mutex
-                self.mutex.release()        
-                self.ped_pos = [obj.pose.pose.position.x, obj.pose.pose.position.y]
-        if not ped_detected:
-            self.pedestrian_states.pop(0)
-        print(self.pedestrian_states)
+                self.mutex.release()
+        print(self.ped_pos)
         self.publish_obstacle_msg()
 
     def create_marker_array(self):
@@ -116,7 +111,8 @@ class SFMHelper(object):
         """
         obstacle_msg = MarkerArray()
         obstacle_msg.markers = self.create_marker_array()
-        obstacle_msg.markers[0] = self.create_marker(self.ped_pos[0], self.ped_pos[1], 0)
+        for i in range(np.shape(self.ped_pos)[0]):
+            obstacle_msg.markers[i] = self.create_marker(self.ped_pos[i][0], self.ped_pos[i][1] ,i)
         self.pub.publish(obstacle_msg)
         
     

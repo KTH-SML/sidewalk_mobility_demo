@@ -317,8 +317,8 @@ class SocialNavigation(object):
         # If pedsim is being used
         if self.IS_PEDSIM:
             # For every pedestrian, insert it into the array (necessary since in sfm pedestrians are stored in a dict)
-            for p in self.sfm_helper.pedestrian_states:
-                pedestrians.append(self.sfm_helper.pedestrian_states[p])
+            for p in self.sfm_helper.ped_pos:
+                pedestrians.append(p)
         else:
             # If mocap is being used
             pedestrians.append([self.sfm_helper.pedestrian_localizer.state.x, self.sfm_helper.pedestrian_localizer.state.y, self.sfm_helper.pedestrian_localizer.state.v, self.sfm_helper.pedestrian_localizer.state.yaw])
@@ -346,6 +346,7 @@ class SocialNavigation(object):
         """
         # Plan a feasible path
         self.plan()
+        self.waypoint_idx = np.minimum(np.argmin(np.linalg.norm(self.path[:, 0:2] - np.array([self.x0[0], self.x0[1]]), axis=1)) + 1, np.shape(self.path)[0] - 1)
         # Spin until alive
         while self.keep_alive():
             self.spin()
@@ -373,7 +374,8 @@ class SocialNavigation(object):
 
         # Get next waypoint index (by computing offset between robot and each point of the path), wrapping it in case of
         # index out of bounds
-        self.waypoint_idx = np.minimum(np.argmin(np.linalg.norm(self.path[:, 0:2] - np.array([self.x0[0], self.x0[1]]), axis=1)) + 1, np.shape(self.path)[0] - 1)
+        while np.linalg.norm(self.path[self.waypoint_idx, 0:2] - np.array([self.x0[0], self.x0[1]])) < 0.2:
+            self.waypoint_idx = (self.waypoint_idx + 1) % np.shape(self.path)[0]
 
         # If there are not enough waypoints for concluding the path, then fill in the waypoints array with the desiderd
         # final goal
