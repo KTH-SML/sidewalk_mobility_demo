@@ -139,12 +139,12 @@ class SocialNavigation(object):
         # Create path using track.py
         self.INTERSECTION_1 = [+2.5, -0.0, +np.pi/2]
         self.CIRCUIT = [
-            [1.0, 90],
+            [1.2, 90],
             [3.0],
-            [1.0, 90],
-            [1.0, 90],
+            [1.2, 90],
+            [1.2, 90],
             [3.0],
-            [1.0, 90],
+            [1.2, 90],
         ]
         #self.CIRCUIT = [
         #    [0.7, 45],
@@ -216,7 +216,7 @@ class SocialNavigation(object):
         self.controller = SMPC(
             self.model,
             N=self.WINDOW_LEN,
-            Q=[20, 20, 200, 0],
+            Q=[25, 25, 500, 0],
             R=[1, .5],
             S=[0, 0, 100],
             x_lb=-x_b,

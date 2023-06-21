@@ -9,7 +9,7 @@
     <arg name="remote_rviz"     default="false"/>
     <arg name="start_rviz"      default="false"/>
     <arg name="xavier"          default="false"/>
-    <arg name="is_mocap"        default="false"/>
+    <arg name="is_mocap"        default="true"/>
 
     <!-- Initial position of SVEA7 -->
     <arg if="$(eval name == 'svea7' or name == 'svea2')" name="x0"  default="-4.0"/>
