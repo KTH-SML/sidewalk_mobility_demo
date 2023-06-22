@@ -82,6 +82,10 @@ class object_detect:
         self.USE_CUDA = load_param('~use_cuda', False)
         self.MODEL_PATH = load_param('~model_path', 'yolov8n.pt')
 
+        # Space separated list, e.g. 'bed cup dog'
+        self.ONLY_OBJECTS = load_param('~only_objects', '').split()
+        self.SKIP_OBJECTS = load_param('~skip_objects', '').split()
+
         self.MAX_AGE = load_param('~max_age', 30)
 
         self.PUB_OBJECTS = load_param('~pub_objects', 'objects')
@@ -149,6 +153,15 @@ class object_detect:
         for box, c, p  in zip(boxes, cls, conf):
             u1, v1, u2, v2 = box
 
+            # get the label name 
+            label = result.names[c]
+
+            if self.SKIP_OBJECTS and label in self.SKIP_OBJECTS:
+                continue 
+
+            if self.ONLY_OBJECTS and label not in self.ONLY_OBJECTS:
+                continue
+
             # get real pixel coords
             u1, u2 = [round(u) for u in (u1, u2)]
             v1, v2 = [round(v) for v in (v1, v2)]
@@ -171,7 +184,7 @@ class object_detect:
 
                 obj = Object()
                 obj.id = int(trk[-1])
-                obj.label = result.names[c]
+                obj.label = label
                 obj.detection_conf = p
                 obj.tracking_conf = tracker.kf.likelihood
                 obj.image_width = self.IMAGE_WIDTH

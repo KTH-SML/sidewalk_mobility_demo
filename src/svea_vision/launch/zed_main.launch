@@ -7,6 +7,8 @@
     <arg name="enable_aruco"        default="false"/>
 
     <!-- Auxiliary -->
+    <arg name="only_objects"        default=""/>
+    <arg name="skip_objects"        default=""/>
     <arg name="max_age"             default="30"/>
     <arg name="aruco_size"          default="0.1"/>
 
@@ -29,6 +31,8 @@
         <arg name="image"               value="$(arg image)"/>
         <arg name="depth_image"         value="$(arg depth_image)"/>
         <!-- Auxiliary -->
+        <arg name="only_objects"        value="$(arg only_objects)"/>
+        <arg name="skip_objects"        value="$(arg skip_objects)"/>
         <arg name="max_age"             value="$(arg max_age)"/>
     </include>
 

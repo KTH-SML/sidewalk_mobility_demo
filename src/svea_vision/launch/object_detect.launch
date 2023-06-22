@@ -15,6 +15,8 @@
     <!-- Auxiliary -->
     <arg name="max_age"             default="30"/>
     <arg name="model_path"          default="yolov8n.pt"/>
+    <arg name="only_objects"        default=""/>
+    <arg name="skip_objects"        default=""/>
 
 
     <!-- Nodes -->
@@ -28,6 +30,8 @@
         <param name="pub_objects"       value="$(arg objects)" />
         <param name="pub_bbox_image"    value="$(arg bbox_image)" />
         <!-- Auxiliary -->
+        <param name="only_objects"      value="$(arg only_objects)" />
+        <param name="skip_objects"      value="$(arg skip_objects)" />
         <param name="max_age"           value="$(arg max_age)" />
         <param name="model_path"        value="$(arg model_path)" />
     </node>

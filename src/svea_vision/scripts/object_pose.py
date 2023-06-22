@@ -132,6 +132,9 @@ class object_pose:
             # take mean of the segment as distance
             d = depth_map[roi_mask][segm_mask].mean()
 
+            # Fudge factor
+            d -= d/8
+
             ## Projection
             # 1. take middle pixel of region of interest
             # 2. get unit vector of projection by `camera_model.projectPixelTo3dRay()`
@@ -176,6 +179,11 @@ class object_pose:
             self.publish_markers(objectpose_array)
 
     def publish_markers(self, msg: StampedObjectPoseArray):
+
+        # Don't send a new marker if there aren't anything to show
+        if not msg.objects:
+            return
+
         marker = Marker()
         marker.header.frame_id = 'map'
         marker.header.stamp = msg.header.stamp
@@ -185,9 +193,11 @@ class object_pose:
         marker.scale = Vector3(0.2, 0.2, 0.2)
         marker.color = ColorRGBA(0, 1, 0, 1)
         marker.lifetime = rospy.Duration(0.5)
+
         for objpose in msg.objects:
             if objpose.object.label == 'person':
                 marker.points.append(objpose.pose.pose.position)
+
         self.pub_objectmarkers.publish(marker)
 
 
