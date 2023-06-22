@@ -17,6 +17,7 @@ from svea.data import RVIZPathHandler
 from svea_social_navigation.apf import ArtificialPotentialFieldHelper
 from svea_social_navigation.static_unmapped_obstacle_simulator import StaticUnmappedObstacleSimulator
 from svea_social_navigation.dynamic_obstacle_simulator import DynamicObstacleSimulator
+#from svea_social_navigation.sfm_helper_obj_rec import SFMHelper
 from svea_social_navigation.sfm_helper import SFMHelper
 from svea_social_navigation.track import Track, Arc
 
@@ -137,14 +138,14 @@ class SocialNavigation(object):
         self.pi = PlannerInterface(theta_threshold=0.3)
 
         # Create path using track.py
-        self.INTERSECTION_1 = [+2.5, -0.0, +np.pi/2]
+        self.INTERSECTION_1 = [+1.85, -0.75, +np.pi/2]
         self.CIRCUIT = [
-            [1.2, 90],
+            [0.75, 90],
             [3.0],
-            [1.2, 90],
-            [1.2, 90],
+            [0.75, 90],
+            [0.75, 90],
             [3.0],
-            [1.2, 90],
+            [0.75, 90],
         ]
         #self.CIRCUIT = [
         #    [0.7, 45],
@@ -216,7 +217,7 @@ class SocialNavigation(object):
         self.controller = SMPC(
             self.model,
             N=self.WINDOW_LEN,
-            Q=[25, 25, 500, 0],
+            Q=[25, 25, 50, 0],
             R=[1, .5],
             S=[0, 0, 100],
             x_lb=-x_b,
@@ -263,7 +264,7 @@ class SocialNavigation(object):
         self.pi.initialize_path_interface()
         # Re-initialize path interface to visualize on RVIZ socially aware path
         self.pi.set_points_path(self.path[:, 0:2])
-        print(f'Social navigation path: {self.path[:, 0:2]} size, {np.shape(self.path)[0]}')
+        #print(f'Social navigation path: {self.path[:, 0:2]} size, {np.shape(self.path)[0]}')
 
         # Publish global path on rviz
         self.pi.publish_path()
@@ -323,9 +324,6 @@ class SocialNavigation(object):
         # Initialize empty pedestrian array
         pedestrians = []
         local_pedestrians_mpc = np.full((4, self.MAX_N_PEDESTRIANS), np.array([[-100000.0, -100000.0, 0, 0]]).T)
-        # Acquire mutex
-        self.sfm_helper.mutex.acquire()
-        # If pedsim is being used
         if self.IS_PEDSIM:
             # For every pedestrian, insert it into the array (necessary since in sfm pedestrians are stored in a dict)
             for p in self.sfm_helper.ped_pos:
@@ -333,8 +331,6 @@ class SocialNavigation(object):
         else:
             # If mocap is being used
             pedestrians.append([self.sfm_helper.pedestrian_localizer.state.x, self.sfm_helper.pedestrian_localizer.state.y, self.sfm_helper.pedestrian_localizer.state.v, self.sfm_helper.pedestrian_localizer.state.yaw])
-        # Release mutex
-        self.sfm_helper.mutex.release()
         # Keep only pedestrians that are in the local costmap
         local_pedestrians = self.apf.get_local_obstacles(pedestrians)
         # Insert them into MPC structure

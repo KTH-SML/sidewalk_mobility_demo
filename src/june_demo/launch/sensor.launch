@@ -17,7 +17,7 @@
     <node name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/$(arg map).yaml" output="screen"/>
 
     <node pkg="tf" type="static_transform_publisher" name="sensor_broadcaster" output="screen"
-        args="-2 -3.0 1.335 0.785 0 0 map zed_base_link 100"/>
+        args="-1.8 -3.2 1.6 1.3962634 0 0 map zed_base_link 100"/>
 
     <include file="$(find svea_vision)/launch/zed_main.launch">
         <arg name="enable_bbox_image"   value="true"/>

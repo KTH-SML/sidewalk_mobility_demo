@@ -86,7 +86,7 @@
             state: [$(arg x0), $(arg y0), $(arg a0), $(arg v0)] # initial state (x, y, yaw)
             static_unmapped_obstacles: []
             dynamic_obstacles: [] # (x, y, v, theta, x_lb, x_ub, y_lb, y_ub)
-            is_pedsim: True
+            is_pedsim: false
             measure: false
         </rosparam>
     </node> 

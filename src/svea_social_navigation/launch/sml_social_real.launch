@@ -24,8 +24,6 @@
     <!-- Start map server -->
     <node name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/$(arg map).yaml" output="screen"/>
 
-    <rosparam command="load" file="$(find svea_core)/params/$(arg obstacle_map).yaml" />
-
     <!-- Start RViz -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find svea_social_navigation)/rviz/config.rviz"/>
     <!-- Start pure_pursuit -->
