@@ -64,10 +64,15 @@
 
     <!-- Start NATS -->
     <node name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
+        <remap to="vis_pose" from="vehicle/pose"/>
+        <remap to="path" from="vehicle/path"/>
         <rosparam subst_value="true">
         host: sml-wan.asuscomm.com
         subscribers:
         - sensor/objects
+        publishers:
+        - vehicle/path
+        - vehicle/pose
         </rosparam>
     </node>
 
@@ -86,7 +91,7 @@
             state: [$(arg x0), $(arg y0), $(arg a0), $(arg v0)] # initial state (x, y, yaw)
             static_unmapped_obstacles: []
             dynamic_obstacles: [] # (x, y, v, theta, x_lb, x_ub, y_lb, y_ub)
-            is_pedsim: false
+            is_pedsim: true
             measure: false
         </rosparam>
     </node> 

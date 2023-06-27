@@ -48,7 +48,7 @@ class SFMHelper(object):
                 state = [obj.pose.pose.position.x, obj.pose.pose.position.y, 0, 0]
                 # Updata/insert entry in pedestrian states array 
                 self.ped_pos.append(state)
-        print(self.ped_pos)
+        #print(self.ped_pos)
         self.publish_obstacle_msg()
 
     def create_marker_array(self):

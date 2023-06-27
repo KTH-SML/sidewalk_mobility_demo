@@ -29,8 +29,8 @@ update_frequency: 12.0
 publish_frequency: 12.0
 transform_tolerance: 0.5
 rolling_window: true
-width: 3.0
-height: 3.0
+width: 1.75
+height: 1.75
 resolution: 0.2
 footprint: [[0.42, 0.1243], [0.42, -0.1243], [-0.147, -0.1243], [-0.147, 0.1243]]
 plugins:    
