@@ -97,7 +97,7 @@ def lists_to_pose_stampeds(x_list, y_list, yaw_list=None, t_list=None):
 class SocialNavigation(object):
     WINDOW_LEN = 10
     DELTA_TIME = 0.1
-    DELTA_TIME_REAL = 0.5
+    DELTA_TIME_REAL = 0.4
     GOAL_THRESH = 0.2
     STRAIGHT_SPEED = 0.7
     TURN_SPEED = 0.5
