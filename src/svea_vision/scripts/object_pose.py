@@ -133,7 +133,7 @@ class object_pose:
             d = depth_map[roi_mask][segm_mask].mean()
 
             # Fudge factor
-            d -= d/8
+            d += d/16
 
             ## Projection
             # 1. take middle pixel of region of interest

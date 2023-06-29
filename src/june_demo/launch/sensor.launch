@@ -10,6 +10,9 @@
         host: sml-wan.asuscomm.com
         publishers:
           - sensor/objects
+        subscribers:
+          - vehicle/pose
+          - vehicle/path 
         </rosparam>
     </node>
 

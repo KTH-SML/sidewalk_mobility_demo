@@ -100,6 +100,9 @@ class object_detect:
         else:
             rospy.loginfo('CUDA disabled')
 
+        classes = {lbl: cls for cls, lbl in self.model.names.items()}
+        self.label_to_class = lambda label: classes[label]
+
         ## SORT multi-object tracker
 
         self.tracked_objects = []
@@ -137,7 +140,16 @@ class object_detect:
         frame = cv2.resize(frame, (self.IMAGE_WIDTH, self.IMAGE_HEIGHT))
         frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
 
-        result = self.model.predict(frame, conf=0.5, verbose=False)[0]
+        if self.ONLY_OBJECTS:
+            result = self.model.predict(frame,
+                                        conf=0.5,
+                                        verbose=False,
+                                        classes=list(map(self.label_to_class, self.ONLY_OBJECTS)))[0]
+        else:
+            result = self.model.predict(frame,
+                                        conf=0.5,
+                                        verbose=False)[0]
+
         result = result.cpu().numpy()
         boxes = result.boxes.xyxy
         conf = result.boxes.conf
