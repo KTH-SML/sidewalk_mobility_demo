@@ -97,7 +97,7 @@ def lists_to_pose_stampeds(x_list, y_list, yaw_list=None, t_list=None):
 class SocialNavigation(object):
     WINDOW_LEN = 10
     DELTA_TIME = 0.1
-    DELTA_TIME_REAL = 0.4
+    DELTA_TIME_REAL = 0.3
     GOAL_THRESH = 0.2
     STRAIGHT_SPEED = 0.7
     TURN_SPEED = 0.5
@@ -211,13 +211,13 @@ class SocialNavigation(object):
         # Create vehicle model object
         self.model = BicycleModel(initial_state=self.x0, dt=self.DELTA_TIME)
         # Define variable bounds
-        x_b = np.array([np.inf, np.inf, 0.8, np.inf])
+        x_b = np.array([np.inf, np.inf, 1.2, np.inf])
         u_b = np.array([0.5, np.deg2rad(40)])
         # Create MPC controller object
         self.controller = SMPC(
             self.model,
             N=self.WINDOW_LEN,
-            Q=[25, 25, 70, 0],
+            Q=[25, 25, 110, 0],
             R=[1, .5],
             S=[0, 0, 125],
             x_lb=-x_b,
@@ -258,7 +258,7 @@ class SocialNavigation(object):
         self.path = np.zeros((np.shape(self.path_from_track)[0], 4))
         self.path[:, 0] = self.path_from_track[:, 0]
         self.path[:, 1] = self.path_from_track[:, 1]
-        self.path[:, 2] = 0.6
+        self.path[:, 2] = 0.4
         self.path[:, 3] = 0
         # Init visualize path interface
         self.pi.initialize_path_interface()
