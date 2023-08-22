@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+
+    <!-- Start NATS -->
+    <node name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
+        <remap from="sensor/objects" to="objectposes"/>
+        <rosparam>
+        host: sml-wan.asuscomm.com
+        publishers:
+          - sensor/objects
+        </rosparam>
+    </node>
+
+    <node pkg="tf" type="static_transform_publisher" name="sensor_broadcaster" output="screen"
+        args="-2 -3.0 1.335 0.785 0 0 map zed_base_link 100"/>
+
+    <include file="$(find svea_vision)/launch/zed_main.launch">
+        <arg name="enable_bbox_image"   value="true"/>
+        <arg name="aruco_size"          value="0.365"/>
+    </include>
+
+</launch>
