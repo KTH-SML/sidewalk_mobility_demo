@@ -8,14 +8,14 @@ from copy import deepcopy
 from svea.controllers.social_mpc import SMPC
 from svea.sensors import Lidar
 from svea.models.bicycle_mpc import BicycleModel
-from svea.models.bicycle import SimpleBicycleModel
 from svea.states import VehicleState
-from svea.simulators.sim_SVEA import SimSVEA
+from svea.interfaces import LocalizationInterface, ActuationInterface, PlannerInterface
+from sveva.interfaces.rc import RCInterface
+from svea.data import RVIZPathHandler
 from svea_social_navigation.apf import ArtificialPotentialFieldHelper
 from svea_social_navigation.static_unmapped_obstacle_simulator import StaticUnmappedObstacleSimulator
 from svea_social_navigation.dynamic_obstacle_simulator import DynamicObstacleSimulator
 from svea_social_navigation.sfm_helper_obj_rec import SFMHelper
-#from svea_social_navigation.sfm_helper import SFMHelper
 from svea_social_navigation.track import Track, Arc
 
 # ROS imports
@@ -24,8 +24,7 @@ from tf.transformations import quaternion_from_euler
 from nav_msgs.msg import Path
 
 def load_param(name, value=None):
-    """
-    Function used to get parameters from ROS parameter server
+    """Function used to get parameters from ROS parameter server
 
     :param name: name of the parameter
     :type name: string
@@ -39,8 +38,7 @@ def load_param(name, value=None):
     return rospy.get_param(name, value)
 
 def publish_initialpose(state, n=10):
-    """
-    Method for publishing initial pose
+    """Method for publishing initial pose
 
     :param state: vehicle state
     :type state: VehicleState
@@ -110,14 +108,10 @@ class SocialAvoidance(object):
         rospy.init_node('svea_social_navigation')
 
         # Get parameters
-        self.IS_SIM = load_param('~is_sim', False)
-        self.USE_RVIZ = load_param('~use_rviz', True)
-        self.REMOTE_RVIZ = load_param('~remote_rviz', False)
         self.STATE = load_param('~state', [0, 0, 0, 0])
         self.SVEA_NAME = load_param('~name', 'svea2')
-        self.DEBUG = load_param('~debug', False)
         self.IS_PEDSIM = load_param('~is_pedsim', True)
-        
+
         # Define publisher for MPC predicted path
         self.pred_path_pub = rospy.Publisher("pred_path", Path, queue_size=1, latch=True)
 
@@ -147,26 +141,14 @@ class SocialAvoidance(object):
         # Initialize social force model helper
         self.sfm_helper = SFMHelper(is_pedsim=self.IS_PEDSIM)
 
-        if self.IS_SIM:
-            # Simulator needs a model to simulate
-            self.sim_model = SimpleBicycleModel(self.state)
-            # Start the simulator immediately, but paused
-            self.simulator = SimSVEA(self.sim_model,
-                                     vehicle_name=self.SVEA_NAME,
-                                     dt=self.DELTA_TIME/10,
-                                     run_lidar=True,
-                                     start_paused=True).start()
-        else:
-            # Start lidar
-            self.lidar = Lidar().start()
-            # Start actuation interface 
-            self.actuation = ActuationInterface().start()
-            # Start localization interface based on which localization method is being used
-            self.localizer = LocalizationInterface().start()
-
-        # Start simulator
-        if self.IS_SIM:
-            self.simulator.toggle_pause_simulation()
+        # Start lidar
+        self.lidar = Lidar().start()
+        # Start actuation interface 
+        self.actuation = ActuationInterface().start()
+        # Start localization interface based on which localization method is being used
+        self.localizer = LocalizationInterface().start()
+        # Start RC interface 
+        self.rc_remote = RCInterface().start()
 
         # Create APF object
         self.apf = ArtificialPotentialFieldHelper(svea_name=self.SVEA_NAME)
@@ -216,12 +198,24 @@ class SocialAvoidance(object):
         else:
             return None
 
-    def plan(self):
+    def plan_path(self):
+
+        # Using the Track framework to create a sort of frenet path that starts from current state 
+        # and stretches 1 second forward (given current velocity).
+        # Curvature K = 1/L * tan(delta)
+        # Length d = v * 1
+        basewidth = 0.32
+        steering, velocity = self.rc_remote.steering, self.rc_remote.velocity
+        state = (self.state.x, self.state.y, self.state.yaw)
+        arc = Arc(velocity, 1/basewidth * np.tan(steering))
+        track = Track([arc], *state, POINT_DENSITY=100)
+        path_from_track = np.array(track.cartesian).T
+
         # Create array for MPC reference
-        self.path = np.zeros((np.shape(self.path_from_track)[0], 4))
-        self.path[:, 0] = self.path_from_track[:, 0]
-        self.path[:, 1] = self.path_from_track[:, 1]
-        self.path[:, 2] = 0.4
+        self.path = np.zeros((np.shape(path_from_track)[0], 4))
+        self.path[:, 0] = path_from_track[:, 0]
+        self.path[:, 1] = path_from_track[:, 1]
+        self.path[:, 2] = velocity
         self.path[:, 3] = 0
         # Init visualize path interface
         self.pi.initialize_path_interface()
@@ -233,7 +227,7 @@ class SocialAvoidance(object):
         self.pi.publish_path()
             
     def _visualize_data(self, x_pred, y_pred, velocity, steering):
-        # Visualize predicted local tracectory
+        """Visualize predicted local tracectory"""
         new_pred = lists_to_pose_stampeds(list(x_pred), list(y_pred))
         path = Path()
         path.header.stamp = rospy.Time.now()
@@ -241,11 +235,7 @@ class SocialAvoidance(object):
         path.poses = new_pred
         self.pred_path_pub.publish(path)
 
-        # Visualize data
-        if self.IS_SIM:
-            self.data_handler.log_state(self.sim_model.state)
-        else:
-            self.data_handler.log_state(self.state)
+        self.data_handler.log_state(self.state)
         self.data_handler.log_ctrl(steering, velocity, rospy.get_time())
         self.data_handler.update_target((self.path[self.waypoint_idx, 0], self.path[self.waypoint_idx, 1]))
         self.data_handler.visualize_data()
@@ -311,39 +301,34 @@ class SocialAvoidance(object):
         return not rospy.is_shutdown()
 
     def run(self):
-        """
-        Run method
-        """
-        # Plan a feasible path
-        self.plan()
-        # Spin until alive
+        """Run node."""
         while self.keep_alive():
             self.spin()
-            # TODO: check that sleep is necessary when running on real svea
-            if not self.IS_SIM:
-                rospy.sleep(0.1)
-        print('--- GOAL REACHED ---')
+            self.rate.sleep()
 
     def spin(self):
-        """
-        Main method
-        """
+        """Body of main loop."""
+
+        self.plan_path()
+
         # Get svea state
-        if not self.IS_SIM:
-            safe = self.localizer.is_ready
-            # Wait for state from localization interface
-            self.state = self.localizer.state
-            self.x0 = [self.state.x, self.state.y, self.state.v, self.state.yaw]
-        else:
-            self.x0 = [self.sim_model.state.x, self.sim_model.state.y, self.sim_model.state.v, self.sim_model.state.yaw]
-        print(f'State: {self.x0}')
+        if not self.localizer.is_ready:
+            return
+
+        # Wait for state from localization interface
+        self.state = self.localizer.state
+        self.x0 = np.array([self.state.x,
+                            self.state.y,
+                            self.state.v,
+                            self.state.yaw])
 
         # Get local static unmapped obstacles, local dynamic obstacles, local pedestrians
         local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc = self.get_local_agents()
 
         # Get next waypoint index (by computing offset between robot and each point of the path), wrapping it in case of
         # index out of bounds
-        self.waypoint_idx = np.minimum(np.argmin(np.linalg.norm(self.path[:, 0:2] - np.array([self.x0[0], self.x0[1]]), axis=1)) + 1, np.shape(self.path)[0] - 1)
+        distances = np.linalg.norm(self.path[:, 0:2] - self.x0[:2], axis=1)
+        self.waypoint_idx = np.minimum(distances.argmin() + 1, np.shape(self.path)[0] - 1)
 
         # If there are not enough waypoints for concluding the path, then fill in the waypoints array with the desiderd
         # final goal
@@ -358,25 +343,19 @@ class SocialAvoidance(object):
 
         # Get optimal velocity (by integrating once the acceleration command and summing it to the current speed) and
         # steering controls
-        if self.IS_SIM:
-            velocity = u[0, 0] * self.DELTA_TIME + self.x0[2]
-        else:
-            velocity = u[0, 0] * self.DELTA_TIME_REAL + self.x0[2]
+        velocity = u[0, 0] * self.DELTA_TIME_REAL + self.x0[2]
         steering = u[1, 0]
         print(f'Optimal control (acceleration, velocity, steering): {u[0, 0], velocity, steering}')
-        
-        # Send control to actuator interface
-        if not self.IS_SIM and safe:
-            self.actuation.send_control(steering, velocity)
 
-        # If model is simulated, then update new state
-        if self.IS_SIM:
-            self.sim_model.update(steering, velocity, self.DELTA_TIME)
-            
+        # Send control to actuator interface
+        self.actuation.send_control(steering, velocity)
+
         # Visualize data on RVIZ
         self._visualize_data(predicted_state[0, :], predicted_state[1, :], velocity, steering)
 
 
 if __name__ == '__main__':
+
     ## Start node ##
-    SocialNavigation().run()
+    SocialAvoidance().run()
+
