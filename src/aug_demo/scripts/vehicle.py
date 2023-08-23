@@ -10,7 +10,7 @@ from svea.sensors import Lidar
 from svea.models.bicycle_mpc import BicycleModel
 from svea.states import VehicleState
 from svea.interfaces import LocalizationInterface, ActuationInterface, PlannerInterface
-from sveva.interfaces.rc import RCInterface
+from svea.interfaces.rc import RCInterface
 from svea.data import RVIZPathHandler
 from svea_social_navigation.apf import ArtificialPotentialFieldHelper
 from svea_social_navigation.static_unmapped_obstacle_simulator import StaticUnmappedObstacleSimulator
@@ -112,6 +112,8 @@ class SocialAvoidance(object):
         self.SVEA_NAME = load_param('~name', 'svea2')
         self.IS_PEDSIM = load_param('~is_pedsim', True)
 
+        self.rate = rospy.Rate(10)
+
         # Define publisher for MPC predicted path
         self.pred_path_pub = rospy.Publisher("pred_path", Path, queue_size=1, latch=True)
 
@@ -149,12 +151,13 @@ class SocialAvoidance(object):
         self.localizer = LocalizationInterface().start()
         # Start RC interface 
         self.rc_remote = RCInterface().start()
-
+        rospy.logwarn("before APF")
         # Create APF object
         self.apf = ArtificialPotentialFieldHelper(svea_name=self.SVEA_NAME)
-        self.apf.wait_for_local_costmap()
+        #self.apf.wait_for_local_costmap()
         # Create vehicle model object
         self.model = BicycleModel(initial_state=self.x0, dt=self.DELTA_TIME)
+        rospy.logwarn("after bicycl emodel ")
         # Define variable bounds
         x_b = np.array([np.inf, np.inf, 1.2, np.inf])
         u_b = np.array([0.5, np.deg2rad(40)])
@@ -174,6 +177,8 @@ class SocialAvoidance(object):
             n_pedestrians=self.MAX_N_PEDESTRIANS,
             verbose=False
         )
+
+        rospy.logwarn("done initilization")
 
     def wait_for_state_from_localizer(self):
         """Wait for a new state to arrive, or until a maximum time
@@ -201,13 +206,14 @@ class SocialAvoidance(object):
     def plan_path(self):
 
         # Using the Track framework to create a sort of frenet path that starts from current state 
-        # and stretches 1 second forward (given current velocity).
+        # and stretches 4 second forward (given current velocity).
         # Curvature K = 1/L * tan(delta)
-        # Length d = v * 1
+        # Length d = v * 4
         basewidth = 0.32
         steering, velocity = self.rc_remote.steering, self.rc_remote.velocity
+        velocity = max(velocity, 0.4)
         state = (self.state.x, self.state.y, self.state.yaw)
-        arc = Arc(velocity, 1/basewidth * np.tan(steering))
+        arc = Arc(4*velocity, 1/basewidth * np.tan(steering))
         track = Track([arc], *state, POINT_DENSITY=100)
         path_from_track = np.array(track.cartesian).T
 
@@ -248,6 +254,8 @@ class SocialAvoidance(object):
         :return: local static unmapped obstacles, dynamic obstacles, pedestrians
         :rtype: list[tuple[float]]
         """
+        return [], [], []
+
         # Get static unmapped obstacles position
         static_unmapped_obs_pos = self.static_unmapped_obs_simulator.obs
         # Initialize array of static unmapped obstacles

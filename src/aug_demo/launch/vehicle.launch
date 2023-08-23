@@ -34,24 +34,21 @@
     </group>
 
     <!-- Start NATS -->
-    <node name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
+    <!-- <node name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
         <rosparam subst_value="true">
         host: sml-wan.asuscomm.com
         subscribers:
           - sensor/objects
         </rosparam>
-    </node>
+    </node> -->
 
     <!-- Start RViz -->
-    <node if="$(eval use_rviz and start_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find svea_core)/rviz/SVEA_floor2.rviz"/>
+    <!-- <node if="$(eval use_rviz and start_rviz)" name="rviz" pkg="rviz" type="rviz" args="-d $(find svea_core)/rviz/SVEA_floor2.rviz"/> -->
 
     <!-- Start pure_pursuit -->
-    <node name="vehicle" pkg="june_demo" type="vehicle.py" output="screen">
+    <node name="vehicle" pkg="aug_demo" type="vehicle.py" output="screen">
         <rosparam subst_value="true">
         name:       $(arg name)
-        use_rviz:   $(arg use_rviz)
-        is_sim:     $(arg is_sim)
-        sim_start: [$(arg x0), $(arg y0), $(arg a0)]
         </rosparam>
     </node>
 

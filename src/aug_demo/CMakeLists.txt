@@ -10,6 +10,7 @@ project(aug_demo)
 find_package(catkin REQUIRED COMPONENTS
   svea_core
   rospy
+  
 )
 
 ## System dependencies are found with CMake's conventions
