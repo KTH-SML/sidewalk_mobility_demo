@@ -1,8 +1,8 @@
-frequency: 30
+frequency: 10
 
 sensor_timeout: 0.1
 
-two_d_mode: false
+two_d_mode: true
 
 transform_time_offset: 0.1
 
@@ -26,31 +26,29 @@ history_length: 0.00
 map_frame: map              # Defaults to "map" if unspecified
 odom_frame: odom            # Defaults to "odom" if unspecified
 base_link_frame: base_link  # Defaults to "base_link" if unspecified
-world_frame: odom           # Defaults to the value of odom_frame if unspecified
-
+world_frame: map           # Defaults to the value of odom_frame if unspecified
 
 ##########################################
-# RS T265 ################################
-odom0: /rs/t265_camera/odom/sample
+# GPS Odometry ################################
+odom0: odometry/gps
 
-odom0_config: [false, false, false,
+odom0_config: [true, true, true,
                false, false, false,
                false, false, false,
-               true, true, true,
-               true, true, true]
+               false, false, false,
+               false, false, false]
 
-#odom0_config: [x, y, z,
+#odom1_config: [x, y, z,
 #               R, P, Y,
 #               x_dot, y_dot, z_dot,
 #               R_dot, P_dot, Y_dot,
 #               x_dot_dot, y_dot_dot, z_dot_dot]
 
-odom0_queue_size: 10
+odom0_queue_size: 8
 odom0_nodelay: true
-
+odom0_relative: false
 odom0_differential: false
-odom0_relative: true
-
+odom0_pose_rejection_threshold: 1
 
 ##########################################
 # BNO055 IMU #############################
@@ -61,8 +59,8 @@ imu0_config: [false, false, false,
               false, false,  false,
               false,  false,  false]
 imu0_nodelay: true # true #default false
-imu0_differential: false
-imu0_relative: true
+imu0_differential: true
+imu0_relative: false
 imu0_queue_size: 8
 #imu0_pose_rejection_threshold: 0.8                 # Note the difference in parameter names
 #imu0_twist_rejection_threshold: 1.0                #
@@ -77,7 +75,7 @@ gravitational_acceleration: -0.35
 twist0: /actuation_twist
 twist0_config: [false, false, false,
                 false, false, false,
-                true,  false, false,
+                true,  true, false,
                 false, false, false,
                 false, false, false]
 twist0_nodelay: true
@@ -92,13 +90,26 @@ twist0_queue_size: 8
 twist1: /wheel_encoder_twist
 twist1_config: [false, false, false,
                 false, false, false,
-                true,  false, false,
+                true,  true, false,
                 false, false, true,
                 false, false, false]
 twist1_nodelay: true
 twist1_differential: true
 twist1_relative: false
 twist1_queue_size: 8
+
+##########################################
+# Pose based on aruco marker ##########
+pose0: /static/pose
+pose0_config: [true, true, true,
+               false, false, true,
+               false, false, false,
+               false, false, false,
+               false, false, false]
+pose0_nodelay: true
+pose0_differential: false
+pose0_relative: false
+pose0_queue_size: 8
 
 # Control input is not used 
 # (and you should not try to use it)
