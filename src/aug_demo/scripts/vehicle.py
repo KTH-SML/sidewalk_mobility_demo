@@ -254,7 +254,6 @@ class SocialAvoidance(object):
         :return: local static unmapped obstacles, dynamic obstacles, pedestrians
         :rtype: list[tuple[float]]
         """
-        return [], [], []
 
         # Get static unmapped obstacles position
         static_unmapped_obs_pos = self.static_unmapped_obs_simulator.obs
