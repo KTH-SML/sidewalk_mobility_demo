@@ -74,6 +74,7 @@ class ArtificialPotentialFieldHelper(object):
         :return: obstacles that are inside the local costmap
         :rtype: list[tuple[float]]
         """
+        return np.array([])
         map_x_limit = self._map_x + self._map_resolution * self._map_width
         map_y_limit = self._map_y + self._map_resolution * self._map_height
         loc_obs = []
