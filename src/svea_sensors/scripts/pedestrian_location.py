@@ -58,6 +58,7 @@ class pedestrian_location:
         self.pedestrian_utm = []
         self.pedestrian_obj = []
         for obj in msg.objects: #object in RSU frame
+            obj.pose.pose.orientation.w = 1.0
             obj_in_utm = tf2_geometry_msgs.do_transform_pose(obj.pose, self.rsu_utm_transform) #Object in UTM frame
             self.pedestrian_obj.append(obj.object)
             self.pedestrian_utm.append(obj_in_utm)
@@ -66,19 +67,16 @@ class pedestrian_location:
 
     def pedestrian_in_svea(self, header, pedestrian_utm, pedestrian_obj):
         self.pedestrian_SVEA = []
-        try:
-            SVEA_in_utm = self.buffer.lookup_transform("base_link", "utm", header.stamp, rospy.Duration(0.5)) #UTM @ SVEA
-            # SVEA_pose = Pose()
-            # SVEA_pose.position = SVEA_in_utm.transform.translation
-            # SVEA_pose.orientation = SVEA_in_utm.transform.rotation
-    
-            for pedestrian in pedestrian_utm:
-                object_in_SVEA = tf2_geometry_msgs.do_transform_pose(pedestrian, SVEA_in_utm) #object @ SVEA
+        for item in pedestrian_obj:
+            try:
+                object_in_SVEA = self.buffer.lookup_transform("base_link", item.label + str(item.id), header.stamp, rospy.Duration(0.5)) #UTM @ SVEA
+                rospy.loginfo(object_in_SVEA)
+
                 self.pedestrian_SVEA.append(object_in_SVEA)
-    
-            self.publish_topic(self.pedestrian_SVEA, pedestrian_obj)
-        except Exception as e:
-            rospy.loginfo(e)
+
+                self.publish_topic(self.pedestrian_SVEA, pedestrian_obj)
+            except Exception as e:
+                rospy.loginfo(f"ped in svea {e}")
 
     def publish_topic(self, pedestrian_SVEA, pedestrian_obj):
         msg = StampedObjectPoseArray()
@@ -86,8 +84,8 @@ class pedestrian_location:
         for peds, info in zip(pedestrian_SVEA, pedestrian_obj):
             obj = ObjectPose()
             obj.object = info
-            obj.pose.pose.position = peds.pose.position
-            obj.pose.pose.orientation = peds.pose.orientation
+            obj.pose.pose.position = peds.transform.translation
+            obj.pose.pose.orientation = peds.transform.rotation
             msg.objects.append(obj)
         self.ped_pose_in_SVEA_Pub.publish(msg)
 
@@ -95,8 +93,8 @@ class pedestrian_location:
             msg = TransformStamped()
             msg.header = peds.header
             msg.child_frame_id = info.label + str(info.id) + "SVEA"
-            msg.transform.translation = peds.pose.position
-            msg.transform.rotation = peds.pose.orientation
+            msg.transform.translation = peds.transform.translation
+            msg.transform.rotation = peds.transform.rotation
             self.br.sendTransform(msg)
 
     def publish_tf(self, pedestrian_utm, pedestrian_obj): #object @ UTM
