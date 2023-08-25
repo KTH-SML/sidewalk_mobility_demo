@@ -155,8 +155,13 @@ class SocialAvoidance(object):
         # Subscribe to joy
         # convert joy data to velocity and steering
         rospy.Subscriber('/joy', Joy, self.joy_callback, queue_size=1)
+        self.path = None
         self.steering = 0.0
         self.velocity = 0.0
+
+        # Planner
+        self.path_timer = rospy.Timer(rospy.Duration(1), self.plan_path)
+
         rospy.logwarn("before APF")
         # Create APF object
         self.apf = ArtificialPotentialFieldHelper(svea_name=self.SVEA_NAME)
@@ -228,23 +233,26 @@ class SocialAvoidance(object):
         else:
             return None
 
-    def plan_path(self):
+    def plan_path(self, event):
+        
+        if event.last_expected is not None and event.current_real < event.last_expected:
+            return # maybe stupiod
 
         # Using the Track framework to create a sort of frenet path that starts from current state 
         # and stretches 4 second forward (given current velocity).
         # Curvature K = 1/L * tan(delta)
         # Length d = v * 4
         basewidth = 0.32
-#        steering, velocity = self.rc_remote.steering, self.rc_remote.velocity
+        # steering, velocity = self.rc_remote.steering, self.rc_remote.velocity
         steering = self.steering
         velocity = self.velocity
 
         if abs(velocity) < 0.3:
-            return False
+            return
 
         state = (self.state.x, self.state.y, self.state.yaw)
-        arc = Arc(4*velocity, 1/basewidth * np.tan(steering))
-        track = Track([arc], *state, POINT_DENSITY=100)
+        arc = Arc(2*velocity, 1/basewidth * np.tan(steering))
+        track = Track([arc], *state, POINT_DENSITY=10)
         path_from_track = np.array(track.cartesian).T
 
         # Create array for MPC reference
@@ -261,8 +269,6 @@ class SocialAvoidance(object):
 
         # Publish global path on rviz
         self.pi.publish_path()
-
-        return True
             
     def _visualize_data(self, x_pred, y_pred, velocity, steering):
         """Visualize predicted local tracectory"""
@@ -341,15 +347,14 @@ class SocialAvoidance(object):
 
     def run(self):
         """Run node."""
+        while self.keep_alive() and self.path is None:
+            pass
         while self.keep_alive():
             self.spin()
             self.rate.sleep()
 
     def spin(self):
         """Body of main loop."""
-
-        if not self.plan_path():
-            return
 
         # Get svea state
         if not self.localizer.is_ready: 
@@ -369,6 +374,11 @@ class SocialAvoidance(object):
         # index out of bounds
         distances = np.linalg.norm(self.path[:, 0:2] - self.x0[:2], axis=1)
         self.waypoint_idx = np.minimum(distances.argmin() + 1, np.shape(self.path)[0] - 1)
+
+        # If final distance, don't send control signal
+        # Maybe no work, smol hack
+        if distances[-1] < 0.2:
+            return
 
         # If there are not enough waypoints for concluding the path, then fill in the waypoints array with the desiderd
         # final goal

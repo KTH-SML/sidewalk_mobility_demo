@@ -41,6 +41,7 @@
         host: sml-wan.asuscomm.com
         subscribers:
           - sensor/objects
+          - joy
         publishers:
           - vehicle/path
           - vehicle/pose
