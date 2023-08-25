@@ -4,3 +4,4 @@
 pyubx2
 scipy
 casadi==3.5.5
+nats-py
