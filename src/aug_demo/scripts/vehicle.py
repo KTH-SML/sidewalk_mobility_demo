@@ -239,7 +239,9 @@ class SocialAvoidance(object):
         steering = self.steering
         velocity = self.velocity
 
-        velocity = max(velocity, 0.4)
+        if abs(velocity) < 0.3:
+            return False
+
         state = (self.state.x, self.state.y, self.state.yaw)
         arc = Arc(4*velocity, 1/basewidth * np.tan(steering))
         track = Track([arc], *state, POINT_DENSITY=100)
@@ -259,6 +261,8 @@ class SocialAvoidance(object):
 
         # Publish global path on rviz
         self.pi.publish_path()
+
+        return True
             
     def _visualize_data(self, x_pred, y_pred, velocity, steering):
         """Visualize predicted local tracectory"""
@@ -344,7 +348,8 @@ class SocialAvoidance(object):
     def spin(self):
         """Body of main loop."""
 
-        self.plan_path()
+        if not self.plan_path():
+            return
 
         # Get svea state
         if not self.localizer.is_ready: 
