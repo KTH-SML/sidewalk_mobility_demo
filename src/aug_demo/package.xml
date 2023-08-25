@@ -23,6 +23,7 @@
   <depend>svea_core</depend>
   <depend>rospy</depend>
   <depend>std_msgs</depend>
+  <depend>joy</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

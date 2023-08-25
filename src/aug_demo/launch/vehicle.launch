@@ -4,7 +4,7 @@
     <!-- Launch file arguments -->
     <arg name="name"            default="svea7"/>
     <arg name="map"             default="sml"/>
-    <arg name="is_sim"          default="true"/>
+    <arg name="is_sim"          default="false"/>
     <arg name="use_rviz"        default="true"/>
     <arg name="start_rviz"      default="false"/>
 

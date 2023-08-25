@@ -23,6 +23,8 @@ from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from tf.transformations import quaternion_from_euler
 from nav_msgs.msg import Path
 
+from sensor_msgs.msg import Joy
+
 def load_param(name, value=None):
     """Function used to get parameters from ROS parameter server
 
@@ -149,8 +151,12 @@ class SocialAvoidance(object):
         self.actuation = ActuationInterface().start()
         # Start localization interface based on which localization method is being used
         self.localizer = LocalizationInterface().start()
-        # Start RC interface 
-        self.rc_remote = RCInterface().start()
+        
+        # Subscribe to joy
+        # convert joy data to velocity and steering
+        rospy.Subscriber('/joy', Joy, self.joy_callback, queue_size=1)
+        self.steering = 0.0
+        self.velocity = 0.0
         rospy.logwarn("before APF")
         # Create APF object
         self.apf = ArtificialPotentialFieldHelper(svea_name=self.SVEA_NAME)
@@ -179,6 +185,25 @@ class SocialAvoidance(object):
         )
 
         rospy.logwarn("done initilization")
+
+    def joy_callback(self, msg):
+        steering = msg.axes[0] #steering
+        forward = msg.axes[2] #forward
+        backward = msg.axes[3] #backward
+        steering_input_max = 0.15
+        velocity_input_max = 1.0 #min -1.0
+        max_steering = 40*np.pi/180
+        max_speed = 1.2 #0 - 1.2
+        
+        steering = min(steering, steering_input_max)
+        steering = max(steering, -steering_input_max)
+        if backward > forward:
+            self.velocity = (-backward - (-velocity_input_max))*(max_speed)/(velocity_input_max*2)-1.2
+        else:
+            self.velocity = (forward - (-velocity_input_max))*(max_speed)/(velocity_input_max*2)+0
+        self.steering = (steering - (-steering_input_max))*(max_steering*2)/(steering_input_max*2)+(-max_steering)
+
+        rospy.loginfo(f"{self.steering}, {self.velocity}")
 
     def wait_for_state_from_localizer(self):
         """Wait for a new state to arrive, or until a maximum time
@@ -210,7 +235,10 @@ class SocialAvoidance(object):
         # Curvature K = 1/L * tan(delta)
         # Length d = v * 4
         basewidth = 0.32
-        steering, velocity = self.rc_remote.steering, self.rc_remote.velocity
+#        steering, velocity = self.rc_remote.steering, self.rc_remote.velocity
+        steering = self.steering
+        velocity = self.velocity
+
         velocity = max(velocity, 0.4)
         state = (self.state.x, self.state.y, self.state.yaw)
         arc = Arc(4*velocity, 1/basewidth * np.tan(steering))
@@ -319,9 +347,9 @@ class SocialAvoidance(object):
         self.plan_path()
 
         # Get svea state
-        if not self.localizer.is_ready:
+        if not self.localizer.is_ready: 
             return
-
+        
         # Wait for state from localization interface
         self.state = self.localizer.state
         self.x0 = np.array([self.state.x,
