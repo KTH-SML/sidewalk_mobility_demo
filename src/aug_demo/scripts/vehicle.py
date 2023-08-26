@@ -265,7 +265,7 @@ class SocialAvoidance(object):
 
         start_point = (self.state.x, self.state.y, self.state.yaw)
 
-        if abs(velocity) < 0.3:
+        if abs(velocity) < 0.2:
             path_from_track = np.array([start_point[:2]])
         else:
 
@@ -277,7 +277,7 @@ class SocialAvoidance(object):
         path = np.zeros((np.shape(path_from_track)[0], 4))
         path[:, 0] = path_from_track[:, 0]
         path[:, 1] = path_from_track[:, 1]
-        path[:, 2] = velocity
+        path[:, 2] = 0.6 # velocity
         path[:, 3] = 0
 
         # Get next waypoint index (by computing offset between robot and each point of the path), wrapping it in case of
