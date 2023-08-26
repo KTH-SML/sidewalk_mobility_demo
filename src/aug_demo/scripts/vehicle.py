@@ -12,6 +12,7 @@ from svea.states import VehicleState
 from svea.interfaces import LocalizationInterface, ActuationInterface, PlannerInterface
 from svea.interfaces.rc import RCInterface
 from svea.data import RVIZPathHandler
+from svea_mocap.mocap import MotionCaptureInterface
 from svea_social_navigation.apf import ArtificialPotentialFieldHelper
 from svea_social_navigation.static_unmapped_obstacle_simulator import StaticUnmappedObstacleSimulator
 from svea_social_navigation.dynamic_obstacle_simulator import DynamicObstacleSimulator
@@ -113,6 +114,7 @@ class SocialAvoidance(object):
         self.STATE = load_param('~state', [0, 0, 0, 0])
         self.SVEA_NAME = load_param('~name', 'svea2')
         self.IS_PEDSIM = load_param('~is_pedsim', True)
+        self.LOCATION = load_param('~location', 'kip')
 
         self.rate = rospy.Rate(10)
 
@@ -150,7 +152,8 @@ class SocialAvoidance(object):
         # Start actuation interface 
         self.actuation = ActuationInterface().start()
         # Start localization interface based on which localization method is being used
-        self.localizer = LocalizationInterface().start()
+        self.localizer = (LocalizationInterface().start() if self.LOCATION == 'kip' else
+                          MotionCaptureInterface().start())
         
         # Subscribe to joy
         # convert joy data to velocity and steering
