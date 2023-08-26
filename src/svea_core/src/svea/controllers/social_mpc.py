@@ -311,7 +311,7 @@ class SMPC(object):
                 print(f'SFM: {self.opti.debug.value(r_force_sfm)}')
         #for r_force in self.F_r_sfm:
         #    print(f'MPC Repulsive sfmc: {self.opti.debug.value(r_force)}')
-        print(f'MPC Cost: {self.opti.debug.value(self.cost)}')
+        # print(f'MPC Cost: {self.opti.debug.value(self.cost)}')
         # Get first control generated (not predicted ones)
         u_optimal = np.expand_dims(self.opti.value(self.u[:, 0]), axis=1)
         # Get new predicted position
