@@ -133,6 +133,7 @@ class SocialAvoidance(object):
 
         # Define planner interface
         self.pi = PlannerInterface(theta_threshold=0.3)
+        self.pi.initialize_path_interface()
 
         # Initialize dynamic obstacles simulator
         self.DYNAMIC_OBS = load_param('~dynamic_obstacles', [])
@@ -253,9 +254,9 @@ class SocialAvoidance(object):
         if abs(velocity) < 0.3:
             return
 
-        state = (self.state.x, self.state.y, self.state.yaw)
+        start_point = (self.state.x, self.state.y, self.state.yaw)
         arc = Arc(2*velocity, 1/basewidth * np.tan(steering))
-        track = Track([arc], *state, POINT_DENSITY=10)
+        track = Track([arc], *start_point, POINT_DENSITY=10)
         path_from_track = np.array(track.cartesian).T
 
         # Create array for MPC reference
@@ -264,11 +265,9 @@ class SocialAvoidance(object):
         self.path[:, 1] = path_from_track[:, 1]
         self.path[:, 2] = velocity
         self.path[:, 3] = 0
-        # Init visualize path interface
-        self.pi.initialize_path_interface()
+        
         # Re-initialize path interface to visualize on RVIZ socially aware path
         self.pi.set_points_path(self.path[:, 0:2])
-        #print(f'Social navigation path: {self.path[:, 0:2]} size, {np.shape(self.path)[0]}')
 
         # Publish global path on rviz
         self.pi.publish_path()
