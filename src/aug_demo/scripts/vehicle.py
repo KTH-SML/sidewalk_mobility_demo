@@ -427,7 +427,7 @@ class SocialAvoidance(object):
         else:
             velocity = 0
             steering = 0
-        print(f'Optimal control (acceleration, velocity, steering): {self.u[0, 0], velocity, steering}')
+        print(f'Control (reference, actual) velocity/steering: {self.velocity, velocity} / {self.steering, steering}')
 
         # Send control to actuator interface
         self.actuation.send_control(steering, velocity)
