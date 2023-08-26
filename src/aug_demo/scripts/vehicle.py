@@ -224,7 +224,7 @@ class SocialAvoidance(object):
             self.velocity = (forward - (-velocity_input_max))*(max_speed)/(velocity_input_max*2)+0
         self.steering = (steering - (-steering_input_max))*(max_steering*2)/(steering_input_max*2)+(-max_steering)
 
-        # rospy.loginfo(f"{self.steering}, {self.velocity}")
+        rospy.loginfo(f"{self.steering}, {self.velocity}")
 
     def wait_for_state_from_localizer(self):
         """Wait for a new state to arrive, or until a maximum time
