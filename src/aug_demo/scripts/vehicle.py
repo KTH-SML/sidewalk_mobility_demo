@@ -420,14 +420,11 @@ class SocialAvoidance(object):
         
         # Get optimal velocity (by integrating once the acceleration command and summing it to the current speed) and
         # steering controls
-        if self.ctrl_idx < self.u.shape[1]:
-            velocity = self.u[0, self.ctrl_idx] * self.DELTA_TIME_REAL + self.x0[2]
-            steering = self.u[1, self.ctrl_idx]
-            self.ctrl_idx += 1
-        else:
-            velocity = 0
-            steering = 0
-        print(f'Control (reference, actual) velocity/steering: {self.velocity, velocity} / {self.steering, steering}')
+        self.ctrl_idx = min(self.ctrl_idx, self.u.shape[1]-1)
+        velocity = self.u[0, self.ctrl_idx] * self.DELTA_TIME_REAL + self.x0[2]
+        steering = self.u[1, self.ctrl_idx]
+        self.ctrl_idx += 1
+        print(f'Control (reference, actual) velocity/steering: ({self.velocity:+.02f}, {velocity:+.02f}) / ({self.steering:+.02f}, {steering:+.02f})')
 
         # Send control to actuator interface
         self.actuation.send_control(steering, velocity)
