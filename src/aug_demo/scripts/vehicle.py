@@ -251,13 +251,15 @@ class SocialAvoidance(object):
         steering = self.steering
         velocity = self.velocity
 
-        if abs(velocity) < 0.3:
-            return
-
         start_point = (self.state.x, self.state.y, self.state.yaw)
-        arc = Arc(2*velocity, 1/basewidth * np.tan(steering))
-        track = Track([arc], *start_point, POINT_DENSITY=10)
-        path_from_track = np.array(track.cartesian).T
+
+        if abs(velocity) < 0.3:
+            path_from_track = np.array([start_point[:2]])
+        else:
+
+            arc = Arc(2*velocity, 1/basewidth * np.tan(steering))
+            track = Track([arc], *start_point, POINT_DENSITY=10)
+            path_from_track = np.array(track.cartesian).T
 
         # Create array for MPC reference
         self.path = np.zeros((np.shape(path_from_track)[0], 4))
