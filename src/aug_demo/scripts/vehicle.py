@@ -208,7 +208,7 @@ class SocialAvoidance(object):
         rospy.loginfo('Start')
 
     def joy_callback(self, msg):
-        steering = msg.axes[0] #steering
+        steering = 2*msg.axes[0] #steering
         forward = msg.axes[2] #forward
         backward = msg.axes[3] #backward
         steering_input_max = 0.15
