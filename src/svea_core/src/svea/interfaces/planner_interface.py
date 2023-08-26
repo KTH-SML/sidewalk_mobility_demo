@@ -123,7 +123,7 @@ class PlannerInterface(object):
             self._rviz_path.header.frame_id = 'map'
             self._rviz_path.header.stamp = rospy.Time.now()
             self._rviz_path.poses = self._pose_path
-            print('Publishing path (length = {}) ...'.format(len(self._pose_path)))
+            # print('Publishing path (length = {}) ...'.format(len(self._pose_path)))
             self._path_pub.publish(self._rviz_path)
 
     def set_points_path(self, path):
