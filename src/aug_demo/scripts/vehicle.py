@@ -154,7 +154,7 @@ class SocialAvoidance(object):
         self.actuation = ActuationInterface().start()
         # Start localization interface based on which localization method is being used
         self.localizer = (LocalizationInterface().start() if self.LOCATION == 'kip' else
-                          MotionCaptureInterface().start())
+                          MotionCaptureInterface(self.SVEA_NAME).start())
         
         # Subscribe to joy
         # convert joy data to velocity and steering
