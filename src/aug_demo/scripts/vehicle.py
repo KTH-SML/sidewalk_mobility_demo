@@ -168,7 +168,7 @@ class SocialAvoidance(object):
         self.path, self.waypoint_idx = None, 0
 
         # Planner
-        self.path_timer = rospy.Timer(rospy.Duration(0.1), self.plan_path)
+        self.path_timer = rospy.Timer(rospy.Duration(0.2), self.plan_path)
 
         rospy.logwarn("before APF")
         # Create APF object
@@ -366,7 +366,7 @@ class SocialAvoidance(object):
             pass
         while self.keep_alive():
             self.spin()
-            self.rate.sleep()
+            rospy.sleep(0.1) # self.rate.sleep()
 
     def spin(self):
         """Body of main loop."""
