@@ -164,7 +164,7 @@ class SocialAvoidance(object):
         self.velocity = 0.0
 
         # Planner
-        self.path_timer = rospy.Timer(rospy.Duration(1), self.plan_path)
+        self.path_timer = rospy.Timer(rospy.Duration(0.1), self.plan_path)
 
         rospy.logwarn("before APF")
         # Create APF object
