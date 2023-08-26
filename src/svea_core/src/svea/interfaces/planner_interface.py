@@ -127,6 +127,7 @@ class PlannerInterface(object):
             self._path_pub.publish(self._rviz_path)
 
     def set_points_path(self, path):
+        self._pose_path = [] # replace path
         self._points_path = path
     
     def get_points_path_reduced(self, granularity=4):
