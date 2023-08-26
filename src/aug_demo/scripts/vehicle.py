@@ -258,7 +258,7 @@ class SocialAvoidance(object):
         start_point = (self.state.x, self.state.y, self.state.yaw)
 
         if abs(velocity) < 0.3:
-            path_from_track = np.array([start_point[:2]]).T
+            path_from_track = np.array([start_point[:2]])
         else:
 
             arc = Arc(2*velocity, 1/basewidth * np.tan(steering))
