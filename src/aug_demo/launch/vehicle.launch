@@ -38,6 +38,11 @@
         <include file="$(find svea_mocap)/launch/map_correction.launch">
             <arg name="map" value="$(arg map)"/>
         </include>
+
+        <!-- Static Transforms-->
+        <include file="$(find svea_sensors)/launch/transforms.launch"/>
+        <node name="tf_lidar_to_base_link" pkg="tf" type="static_transform_publisher" args="0 0 -0.2 0 0 0 $(arg name) base_link 100" />
+        <node name="tf_odom_to_base_link" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 base_link odom 100" />
     </group>
     
     <!-- Run the costmap node -->
