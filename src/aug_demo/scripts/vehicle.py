@@ -158,25 +158,26 @@ class SocialAvoidance(object):
         self.localizer = (LocalizationInterface().start() if self.LOCATION == 'kip' else
                           MotionCaptureInterface(self.SVEA_NAME).start())
         
+        self.wait_for_state_from_localizer()
+        
+        # Wait for state from localization interface
+        self.state = self.localizer.state
+        self.x0 = np.array([self.state.x,
+                            self.state.y,
+                            self.state.v,
+                            self.state.yaw])
+
         # Subscribe to joy
         # convert joy data to velocity and steering
         rospy.Subscriber('/joy', Joy, self.joy_callback, queue_size=1)
         self.steering = 0.0
         self.velocity = 0.0
 
-        self.path_lock = Lock()
-        self.path, self.waypoint_idx = None, 0
-
-        # Planner
-        self.path_timer = rospy.Timer(rospy.Duration(0.2), self.plan_path)
-
-        rospy.logwarn("before APF")
         # Create APF object
         self.apf = ArtificialPotentialFieldHelper(svea_name=self.SVEA_NAME)
         #self.apf.wait_for_local_costmap()
         # Create vehicle model object
         self.model = BicycleModel(initial_state=self.x0, dt=self.DELTA_TIME)
-        rospy.logwarn("after bicycl emodel ")
         # Define variable bounds
         x_b = np.array([np.inf, np.inf, 1.2, np.inf])
         u_b = np.array([0.5, np.deg2rad(40)])
@@ -197,7 +198,14 @@ class SocialAvoidance(object):
             verbose=False
         )
 
-        rospy.logwarn("done initilization")
+        self.path_lock = Lock()
+        self.path_timer = rospy.Timer(rospy.Duration(0.2), self.plan_path)
+
+        self.u, self.x_hat = np.array([[0, 0]]).T, np.array([[0, 0, 0, 0]]).T
+        self.ctrl_timer = rospy.Timer(rospy.Duration(0.5), self.compute_ctrl)
+
+        rospy.sleep(1) # to get initial path, control etc
+        rospy.loginfo('Start')
 
     def joy_callback(self, msg):
         steering = msg.axes[0] #steering
@@ -216,7 +224,7 @@ class SocialAvoidance(object):
             self.velocity = (forward - (-velocity_input_max))*(max_speed)/(velocity_input_max*2)+0
         self.steering = (steering - (-steering_input_max))*(max_steering*2)/(steering_input_max*2)+(-max_steering)
 
-        rospy.loginfo(f"{self.steering}, {self.velocity}")
+        # rospy.loginfo(f"{self.steering}, {self.velocity}")
 
     def wait_for_state_from_localizer(self):
         """Wait for a new state to arrive, or until a maximum time
@@ -284,6 +292,30 @@ class SocialAvoidance(object):
 
         # Publish global path on rviz
         self.pi.publish_path()
+
+    def compute_ctrl(self, event):
+
+        if event.last_expected is not None and event.current_real < event.last_expected:
+            return # maybe stupiod
+
+        # Get local static unmapped obstacles, local dynamic obstacles, local pedestrians
+        local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc = self.get_local_agents()
+        
+        with self.path_lock:
+
+            self.ctrl_idx = 0
+
+            # If there are not enough waypoints for concluding the path, then fill in the waypoints array with the desiderd
+            # final goal
+            if self.waypoint_idx + self.WINDOW_LEN + 1 >= np.shape(self.path)[0]:
+                last_iteration_points = self.path[self.waypoint_idx:, :]
+                while np.shape(last_iteration_points)[0] < self.WINDOW_LEN + 1:
+                    last_iteration_points = np.vstack((last_iteration_points, self.path[-1, :]))
+                self.u, self.x_hat = self.controller.get_ctrl(self.x0, last_iteration_points[:, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
+            else:
+                self.u, self.x_hat = self.controller.get_ctrl(self.x0, self.path[self.waypoint_idx:self.waypoint_idx + self.WINDOW_LEN + 1, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
+            #u, predicted_state = self.controller.get_ctrl(self.x0, self.path[self.waypoint_idx, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
+
             
     def _visualize_data(self, x_pred, y_pred, velocity, steering):
         """Visualize predicted local tracectory"""
@@ -362,11 +394,9 @@ class SocialAvoidance(object):
 
     def run(self):
         """Run node."""
-        while self.keep_alive() and self.path is None:
-            pass
         while self.keep_alive():
             self.spin()
-            rospy.sleep(0.1) # self.rate.sleep()
+            self.rate.sleep()
 
     def spin(self):
         """Body of main loop."""
@@ -382,38 +412,28 @@ class SocialAvoidance(object):
                             self.state.v,
                             self.state.yaw])
 
-        # Get local static unmapped obstacles, local dynamic obstacles, local pedestrians
-        local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc = self.get_local_agents()
-
         # If final distance, don't send control signal
         # Maybe no work, smol hack
         if self.distances[-1] < 0.2:
             return
 
-        with self.path_lock:
-
-            # If there are not enough waypoints for concluding the path, then fill in the waypoints array with the desiderd
-            # final goal
-            if self.waypoint_idx + self.WINDOW_LEN + 1 >= np.shape(self.path)[0]:
-                last_iteration_points = self.path[self.waypoint_idx:, :]
-                while np.shape(last_iteration_points)[0] < self.WINDOW_LEN + 1:
-                    last_iteration_points = np.vstack((last_iteration_points, self.path[-1, :]))
-                u, predicted_state = self.controller.get_ctrl(self.x0, last_iteration_points[:, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
-            else:
-                u, predicted_state = self.controller.get_ctrl(self.x0, self.path[self.waypoint_idx:self.waypoint_idx + self.WINDOW_LEN + 1, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
-            #u, predicted_state = self.controller.get_ctrl(self.x0, self.path[self.waypoint_idx, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
-
+        
         # Get optimal velocity (by integrating once the acceleration command and summing it to the current speed) and
         # steering controls
-        velocity = u[0, 0] * self.DELTA_TIME_REAL + self.x0[2]
-        steering = u[1, 0]
-        print(f'Optimal control (acceleration, velocity, steering): {u[0, 0], velocity, steering}')
+        if self.ctrl_idx < self.u.shape[1]:
+            velocity = self.u[0, self.ctrl_idx] * self.DELTA_TIME_REAL + self.x0[2]
+            steering = self.u[1, self.ctrl_idx]
+            self.ctrl_idx += 1
+        else:
+            velocity = 0
+            steering = 0
+        print(f'Optimal control (acceleration, velocity, steering): {self.u[0, 0], velocity, steering}')
 
         # Send control to actuator interface
         self.actuation.send_control(steering, velocity)
 
         # Visualize data on RVIZ
-        self._visualize_data(predicted_state[0, :], predicted_state[1, :], velocity, steering)
+        self._visualize_data(self.x_hat[0, :], self.x_hat[1, :], velocity, steering)
 
 
 if __name__ == '__main__':
