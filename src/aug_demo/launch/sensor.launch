@@ -1,8 +1,15 @@
 <?xml version="1.0"?>
 <launch>
+    
+    <!-- Launch file arguments -->
+    <arg name="location"    default="kip"/>
 
+    <arg name="nats"        default="false"/>
+
+    <arg name="name"        default="rsu"/>
+    
     <!-- Start NATS -->
-    <node name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
+    <node if="$(arg nats)" name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
         <remap from="sensor/objects" to="objectposes"/>
         <rosparam>
         host: sml-wan.asuscomm.com
@@ -11,9 +18,28 @@
         </rosparam>
     </node>
 
-    <node pkg="tf" type="static_transform_publisher" name="sensor_broadcaster" output="screen"
-        args="-2 -3.0 1.335 0.785 0 0 map zed_base_link 100"/>
+    <!-- Start map server -->
+    <arg name="map" value="sml"/>
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/$(arg map).yaml" output="screen"/>
 
+    <!-- Motion Capture System -->
+    <group if="$(eval location == 'sml')">
+        <arg name="mocap_address" value="10.0.0.10"/>
+        <arg name="mocap_name"    value="$(arg name)"/>
+
+        <include file="$(find mocap_qualisys)/launch/qualisys.launch">
+            <arg name="server_address" value="$(arg mocap_address)"/>
+        </include>
+
+        <include file="$(find svea_mocap)/launch/map_correction.launch">
+            <arg name="map" value="$(arg map)"/>
+        </include>
+
+        <!-- Static Transforms-->
+        <include file="$(find svea_sensors)/launch/transforms.launch"/>
+        <node pkg="tf" type="static_transform_publisher" name="sensor_broadcaster" output="screen" args="0 0 0 0 0 0 rsu zed_base_link 100"/>
+    </group>
+    
     <include file="$(find svea_vision)/launch/zed_main.launch">
         <arg name="enable_bbox_image"   value="true"/>
         <arg name="aruco_size"          value="0.365"/>

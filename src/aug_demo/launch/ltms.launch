@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<launch>
+    
+    <!-- Launch file arguments -->
+    <arg name="name"        default="ltms"/>
+    <arg name="nats"        default="false"/>
+    
+    <!-- Start NATS -->
+    <node if="$(arg nats)" name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
+        <rosparam>
+        host: sml-wan.asuscomm.com
+        services:
+          - ltms/refine_path
+        </rosparam>
+    </node>
+
+    <!-- Start LTMS -->
+    <node name="ltms" pkg="aug_demo" type="ltms.py" output="screen">
+        <rosparam subst_value="true">
+        name: $(arg name)
+        </rosparam>
+    </node>
+
+</launch>
