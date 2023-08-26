@@ -4,6 +4,8 @@ import numpy as np
 import rospy
 from copy import deepcopy
 
+from threading import Lock
+
 # SVEA imports
 from svea.controllers.social_mpc import SMPC
 from svea.sensors import Lidar
@@ -159,9 +161,11 @@ class SocialAvoidance(object):
         # Subscribe to joy
         # convert joy data to velocity and steering
         rospy.Subscriber('/joy', Joy, self.joy_callback, queue_size=1)
-        self.path = None
         self.steering = 0.0
         self.velocity = 0.0
+
+        self.path_lock = Lock()
+        self.path, self.waypoint_idx = None, 0
 
         # Planner
         self.path_timer = rospy.Timer(rospy.Duration(0.1), self.plan_path)
@@ -262,12 +266,19 @@ class SocialAvoidance(object):
             path_from_track = np.array(track.cartesian).T
 
         # Create array for MPC reference
-        self.path = np.zeros((np.shape(path_from_track)[0], 4))
-        self.path[:, 0] = path_from_track[:, 0]
-        self.path[:, 1] = path_from_track[:, 1]
-        self.path[:, 2] = velocity
-        self.path[:, 3] = 0
-        
+        path = np.zeros((np.shape(path_from_track)[0], 4))
+        path[:, 0] = path_from_track[:, 0]
+        path[:, 1] = path_from_track[:, 1]
+        path[:, 2] = velocity
+        path[:, 3] = 0
+
+        # Get next waypoint index (by computing offset between robot and each point of the path), wrapping it in case of
+        # index out of bounds
+        self.distances = np.linalg.norm(path[:, 0:2] - self.x0[:2], axis=1)
+
+        with self.path_lock:        
+            self.path, self.waypoint_idx = path, np.minimum(self.distances.argmin() + 1, np.shape(path)[0] - 1)
+
         # Re-initialize path interface to visualize on RVIZ socially aware path
         self.pi.set_points_path(self.path[:, 0:2])
 
@@ -374,26 +385,23 @@ class SocialAvoidance(object):
         # Get local static unmapped obstacles, local dynamic obstacles, local pedestrians
         local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc = self.get_local_agents()
 
-        # Get next waypoint index (by computing offset between robot and each point of the path), wrapping it in case of
-        # index out of bounds
-        distances = np.linalg.norm(self.path[:, 0:2] - self.x0[:2], axis=1)
-        self.waypoint_idx = np.minimum(distances.argmin() + 1, np.shape(self.path)[0] - 1)
-
         # If final distance, don't send control signal
         # Maybe no work, smol hack
-        if distances[-1] < 0.2:
+        if self.distances[-1] < 0.2:
             return
 
-        # If there are not enough waypoints for concluding the path, then fill in the waypoints array with the desiderd
-        # final goal
-        if self.waypoint_idx + self.WINDOW_LEN + 1 >= np.shape(self.path)[0]:
-            last_iteration_points = self.path[self.waypoint_idx:, :]
-            while np.shape(last_iteration_points)[0] < self.WINDOW_LEN + 1:
-                last_iteration_points = np.vstack((last_iteration_points, self.path[-1, :]))
-            u, predicted_state = self.controller.get_ctrl(self.x0, last_iteration_points[:, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
-        else:
-            u, predicted_state = self.controller.get_ctrl(self.x0, self.path[self.waypoint_idx:self.waypoint_idx + self.WINDOW_LEN + 1, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
-        #u, predicted_state = self.controller.get_ctrl(self.x0, self.path[self.waypoint_idx, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
+        with self.path_lock:
+
+            # If there are not enough waypoints for concluding the path, then fill in the waypoints array with the desiderd
+            # final goal
+            if self.waypoint_idx + self.WINDOW_LEN + 1 >= np.shape(self.path)[0]:
+                last_iteration_points = self.path[self.waypoint_idx:, :]
+                while np.shape(last_iteration_points)[0] < self.WINDOW_LEN + 1:
+                    last_iteration_points = np.vstack((last_iteration_points, self.path[-1, :]))
+                u, predicted_state = self.controller.get_ctrl(self.x0, last_iteration_points[:, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
+            else:
+                u, predicted_state = self.controller.get_ctrl(self.x0, self.path[self.waypoint_idx:self.waypoint_idx + self.WINDOW_LEN + 1, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
+            #u, predicted_state = self.controller.get_ctrl(self.x0, self.path[self.waypoint_idx, :].T, local_static_mpc, local_dynamic_mpc, local_pedestrian_mpc)
 
         # Get optimal velocity (by integrating once the acceleration command and summing it to the current speed) and
         # steering controls
