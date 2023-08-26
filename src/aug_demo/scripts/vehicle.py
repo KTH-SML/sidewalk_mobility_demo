@@ -210,7 +210,7 @@ class SocialAvoidance(object):
     def joy_callback(self, msg):
         steering = 0.5*msg.axes[0] #steering
         forward = msg.axes[2] #forward
-        backward = msg.axes[3] #backward
+        backward = msg.axes[1] #backward
         steering_input_max = 0.15
         velocity_input_max = 1.0 #min -1.0
         max_steering = 40*np.pi/180
