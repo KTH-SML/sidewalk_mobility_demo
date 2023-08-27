@@ -1,3 +1,7 @@
 [submodule "src/nats-ros-connector"]
 	path = src/nats-ros-connector
 	url = https://github.com/aljanabim/nats-ros-connector
+[submodule "src/ros-g29-force-feedback"]
+	path = src/ros-g29-force-feedback
+	url = https://github.com/kuriatsu/ros-g29-force-feedback
+	branch = ros1

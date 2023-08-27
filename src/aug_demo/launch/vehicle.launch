@@ -2,16 +2,15 @@
 <launch>
 
     <!-- Launch file arguments -->
-    <arg name="location" default="kip"/>
-
-    <arg name="name"    default="svea2"/>
-    <arg name="x0"      default="+1.0"/>
-    <arg name="y0"      default="-2.0"/>
-    <arg name="a0"      default="0.00" /> <!-- wrt to map-->
+    <arg name="nats"        default="true"/>
+    <arg name="location"    default="sml"/>
+    <arg name="name"        default="svea2"/>
+    <arg name="x0"          default="+1.0"/>
+    <arg name="y0"          default="-2.0"/>
+    <arg name="a0"          default="0.00"/> <!-- wrt to map-->
 
     <!-- Start map server -->
-    <arg name="map"         value="sml"/>
-    <node name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/$(arg map).yaml" output="screen"/>
+    <node if="$(eval location == 'sml')" name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/sml.yaml" output="screen"/>
 
     <!-- Start low-level interface -->
     <node name="serial_node" pkg="rosserial_python" type="serial_node.py">
@@ -27,6 +26,7 @@
         <arg name="initial_pose_a" value="$(arg a0)" />
     </include>
 
+    <!-- Motion Capture System -->
     <group if="$(eval location == 'sml')">
         <arg name="mocap_address" value="10.0.0.10"/>
         <arg name="mocap_name"    value="$(arg name)"/>
@@ -39,35 +39,34 @@
             <arg name="map" value="$(arg map)"/>
         </include>
 
+        <include file="$(find svea_mocap)/launch/mocap_to_state.launch">
+            <arg name="mocap_name" value="$(arg mocap_name)"/>
+            <arg name="input_topic" default="/qualisys/$(arg mocap_name)/pose"/>
+            <arg name="velocity_topic" default="/qualisys/$(arg mocap_name)/velocity"/>
+        </include>
+
         <!-- Static Transforms-->
         <include file="$(find svea_sensors)/launch/transforms.launch"/>
         <node name="tf_lidar_to_base_link" pkg="tf" type="static_transform_publisher" args="0 0 -0.2 0 0 0 $(arg name) base_link 100" />
         <node name="tf_odom_to_base_link" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 base_link odom 100" />
     </group>
     
-    <!-- Run the costmap node -->
-    <node name="costmap_node" pkg="costmap_2d" type="costmap_2d_node">
-        <rosparam file="$(find svea_social_navigation)/config/costmap_params_svea.yaml" command="load" ns="costmap"/>
-    </node>
-
     <!-- Start NATS -->
-    <node name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
-        <remap to="vis_pose" from="vehicle/pose"/>
-        <remap to="path" from="vehicle/path"/>
+    <node if="$(arg nats)" name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
+        <remap from="$(arg name)/state" to="state"/>
+        <remap from="$(arg name)/path"  to="path"/>
         <rosparam subst_value="true">
         host: sml-wan.asuscomm.com
+        srv_req_timeout: 10
         subscribers:
-          - sensor/objects
-          - joy
+          - $(arg name)/remote/ctrl_request
         publishers:
-          - vehicle/path
-          - vehicle/pose
+          - $(arg name)/state
+          - $(arg name)/path
+        service_proxies:
+          - name: ltms/verify_state
+            type: aug_demo/VerifyState
         </rosparam>
-    </node>
-
-    <!-- Static Unmapped Obstacle Simulator -->
-    <node name="static_unmapped_obstacle_simulator" pkg="svea_social_navigation" type="static_unmapped_obstacle_simulator.py">
-        <param name="is_pedsim" value="false"/>
     </node>
 
     <!-- Start pure_pursuit -->

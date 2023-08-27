@@ -38,135 +38,67 @@ def load_param(name, value=None):
         assert rospy.has_param(name), f'Missing parameter "{name}"'
     return rospy.get_param(name, value)
 
-def publish_initialpose(state, n=10):
-    """Method for publishing initial pose
-
-    :param state: vehicle state
-    :type state: VehicleState
-    :param n: _description_, defaults to 10
-    :type n: int, optional
-    """
-    p = PoseWithCovarianceStamped()
-    p.header.frame_id = 'map'
-    p.pose.pose.position.x = state.x
-    p.pose.pose.position.y = state.y
-
-    q = quaternion_from_euler(0, 0, state.yaw)
-    p.pose.pose.orientation.z = q[2]
-    p.pose.pose.orientation.w = q[3]
-
-    pub = rospy.Publisher('/initialpose', PoseWithCovarianceStamped, queue_size=10)
-    rate = rospy.Rate(10)
-
-    for _ in range(n):
-        pub.publish(p)
-        rate.sleep()
-
-
-class Avoider(object):
+class remote_driving(object):
 
     THRESHOLD = 0.2
 
     def __init__(self):
         """Init method for SocialNavigation class."""
 
-        rospy.init_node('avoider')
-
-        # Get parameters
-        self.NAME = load_param('~name', 'svea2')
-        self.STATE = load_param('~state', [0, 0, 0, 0])
-        self.LOCATION = load_param('~location', 'kip')
-
-        rospy.wait_for_service('ltms/verify_state')
-        self.verify_state = rospy.ServiceProxy('ltms/verify_state', VerifyState)
+        rospy.init_node('remote_driving')
 
         self.rate = rospy.Rate(10)
+
+        # Get parameters
+        self.NAME = load_param('~name', 'remote_driving')
+        self.VEHICLE_NAME = load_param('~vehicle_name', 'svea')
+        self.LOCATION = load_param('~location', 'kip')
 
         self._path_topic = load_param('~path_topic', 'path')
         self._path_pub = rospy.Publisher(self._path_topic, Path, latch=True, queue_size=1)
         self._path_lock = Lock()
 
-        if self.LOCATION == 'sml':
-            self._state_pub = rospy.Publisher('state', VehicleStateMsg, latch=True, queue_size=1)
-            def state_cb(pose, twist):
-                state = VehicleStateMsg()
-                state.header = pose.header
-                state.child_frame_id = 'svea2'
-                state.x = pose.pose.position.x 
-                state.y = pose.pose.position.y
-                roll, pitch, yaw = euler_from_quaternion([pose.pose.orientation.x,
-                                                        pose.pose.orientation.y,
-                                                        pose.pose.orientation.z,
-                                                        pose.pose.orientation.w])
-                state.yaw = yaw
-                state.v = twist.twist.linear.x
-                self._state_pub.publish(state)
-            mf.TimeSynchronizer([
-                mf.Subscriber(f'/qualisys/{self.NAME}/pose', PoseStamped),
-                mf.Subscriber(f'/qualisys/{self.NAME}/velocity', TwistStamped)
-            ], 10).registerCallback(state_cb)
-
-            self._target_pub = rospy.Publisher('target', PointStamped, latch=True, queue_size=1)
-
-        # Create Controller
-        self.controller = PurePursuitController()
-        self.controller.target_velocity = 0.6
+        # Start localization interface based on which localization method is being used
+        self.localizer = LocalizationInterface().start()
+        self.state = self.localizer.state
 
         # Start actuation interface 
         self.actuation = ActuationInterface().start()
-
-        # Start localization interface based on which localization method is being used
-        self.localizer = LocalizationInterface().start()
+        self.steering, self.velocity = 0.0, 0.0
 
         # Subscribe to joy
         rospy.Subscriber('joy', Joy, self.joy_cb, queue_size=1)
-
-        # Initialize vehicle state
-        # publish_initialpose(VehicleState(*self.STATE))
-        self.steering, self.velocity = 0.0, 0.0
-        self.joy_steering, self.joy_velocity = 0.0, 0.0
-        self.state = self.localizer.state
 
         # Instatiate RVIZPathHandler object if publishing to RVIZ
         self.data_handler = RVIZPathHandler()
 
         rospy.Timer(rospy.Duration(0.1), self.create_path)
 
-        self.safe = True
-        def verify_state_tmr(event):
-            if event.last_expected is not None and event.current_real < event.last_expected:
-                return # maybe stupiod
-            self.safe = self.verify_state(self.state.state_msg).ok
-            print(f'{self.safe=}')
-        rospy.Timer(rospy.Duration(0.5), verify_state_tmr)
-
-        rospy.sleep(1)
-        rospy.loginfo('Start')
+        rospy.loginfo('Starting node')
 
     def joy_cb(self, msg):
         steering = 0.5*msg.axes[0]
         forward = msg.axes[2]
         backward = msg.axes[1]
         steering_input_max = 0.15
-        velocity_input_max = 0.8
+        max_velocity = 0.8
         max_steering = 40*np.pi/180
-        max_speed = 1.2
         
         steering = min(steering, steering_input_max)
         steering = max(steering, -steering_input_max)
 
         forward += 1
         forward /= 2
-        forward *= velocity_input_max
+        forward *= max_velocity
 
         backward += 1
         backward /= 2
-        backward *= -velocity_input_max
+        backward *= -max_velocity
 
-        self.joy_velocity = forward or backward
-        self.joy_steering = (steering - (-steering_input_max))*(max_steering*2)/(steering_input_max*2)+(-max_steering)
+        self.velocity = forward or backward
+        self.steering = (steering - (-steering_input_max))*(max_steering*2)/(steering_input_max*2)+(-max_steering)
 
-        # rospy.loginfo(f"{self.steering}, {self.velocity}")
+        rospy.loginfo(f"{self.steering=:.02f}, {self.velocity=:.02f}")
 
     def create_path(self, event):
         
@@ -183,8 +115,8 @@ class Avoider(object):
         HEADWAY = 3 # [s]
 
         # steering, velocity = self.rc_remote.steering, self.rc_remote.velocity
-        steering = self.joy_steering
-        velocity = self.joy_velocity
+        steering = self.steering
+        velocity = self.velocity
 
         start_point = (self.state.x, self.state.y, self.state.yaw)
 
@@ -217,11 +149,8 @@ class Avoider(object):
         # Publish global path on rviz
         self._path_pub.publish(path_msg)
         
-        self.path = path_array
-
     def _visualize_data(self):
         self.data_handler.log_state(self.state)
-        self.data_handler.log_ctrl(self.steering, self.velocity, rospy.get_time())
         self.data_handler.visualize_data()
 
     def keep_alive(self):
@@ -246,11 +175,8 @@ class Avoider(object):
         if not self.localizer.is_ready: 
             return
 
-        if not self.safe:
-            return
-
         # Send control to actuator interface
-        self.actuation.send_control(self.joy_steering, self.joy_velocity)
+        self.actuation.send_control(self.steering, self.velocity)
 
         # Visualize data on RVIZ
         self._visualize_data()
@@ -259,5 +185,5 @@ class Avoider(object):
 if __name__ == '__main__':
 
     ## Start node ##
-    Avoider().run()
+    remote_driving().run()
 
