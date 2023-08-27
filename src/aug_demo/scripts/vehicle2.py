@@ -3,9 +3,11 @@
 import numpy as np
 import rospy
 
+from threading import Lock
+
 # SVEA imports
 from svea.states import VehicleState
-from svea.interfaces import LocalizationInterface, ActuationInterface, PlannerInterface
+from svea.interfaces import LocalizationInterface, ActuationInterface
 from svea.interfaces.rc import RCInterface
 from svea.controllers.pure_pursuit import PurePursuitController
 from svea.data import RVIZPathHandler
@@ -61,6 +63,8 @@ def publish_initialpose(state, n=10):
 
 class Avoider(object):
 
+    THRESHOLD = 0.2
+
     def __init__(self):
         """Init method for SocialNavigation class."""
 
@@ -75,18 +79,13 @@ class Avoider(object):
 
         self.rate = rospy.Rate(10)
 
-        # Initialize vehicle state
-        self.steering = 0.0
-        self.velocity = 0.0
-        self.state = VehicleState(*self.STATE)
-        publish_initialpose(self.state)
-
-        # Define planner interface
-        self.pi = PlannerInterface(theta_threshold=0.3)
-        self.pi.initialize_path_interface()
+        self._path_topic = load_param('~path_topic', '/path')
+        self._path_pub = rospy.Publisher(self._path_topic, Path, latch=True, queue_size=1)
+        self._path_lock = Lock()
 
         # Create Controller
         self.controller = PurePursuitController()
+        self.controller.target_velocity = 0.6
 
         # Start actuation interface 
         self.actuation = ActuationInterface().start()
@@ -98,11 +97,18 @@ class Avoider(object):
         # Subscribe to joy
         rospy.Subscriber('joy', Joy, self.joy_cb, queue_size=1)
 
+        # Initialize vehicle state
+        publish_initialpose(VehicleState(*self.STATE))
+        self.steering = 0.0
+        self.velocity = 0.0
+        self.state = self.localizer.state
+
         # Instatiate RVIZPathHandler object if publishing to RVIZ
         self.data_handler = RVIZPathHandler()
 
         rospy.Timer(rospy.Duration(0.2), self.create_path)
 
+        rospy.sleep(1)
         rospy.loginfo('Start')
 
     def joy_cb(self, msg):
@@ -148,41 +154,47 @@ class Avoider(object):
             path_from_track = np.array(track.cartesian).T
 
         # Create array for MPC reference
-        path_array = np.zeros((np.shape(path_from_track)[0], 4))
+        path_array = np.zeros((len(path_from_track), 4))
         path_array[:, 0] = path_from_track[:, 0]
         path_array[:, 1] = path_from_track[:, 1]
         path_array[:, 2] = 0.6 # velocity
         path_array[:, 3] = 0
 
-        path = Path()
-        path.header.frame_id = self.state.header.frame_id
-        path.header.stamp = rospy.Time.now()
-        path.poses = []
+        path_msg = Path()
+        path_msg.header.frame_id = self.state.frame_id
+        path_msg.header.stamp = rospy.Time.now()
+        path_msg.poses = []
 
-        for i, (x, y) in enumerate(path_from_track[:, :2]):
+        # Idk why it's flipped...
+        for i, (y, x) in enumerate(path_array[:, :2]):
             pose = PoseStamped()
-            pose.header.frame_id = path.header.frame_id
-            pose.header.stamp = path.header.stamp + i*rospy.Duration(HEADWAY/POINT_DENSITY)
+            pose.header.frame_id = path_msg.header.frame_id
+            pose.header.stamp = path_msg.header.stamp + i*rospy.Duration(HEADWAY/POINT_DENSITY)
             pose.pose.position.x = x
             pose.pose.position.y = y
-            path.poses.append(pose)
+            path_msg.poses.append(pose)
 
-        resp = self.refine_path(path)
-        self.path = resp.path
+        # resp = self.refine_path(path)
+        # path_msg = resp.path
 
-        # Re-initialize path interface to visualize on RVIZ socially aware path
-        self.pi.set_points_path(self.path[:, 0:2])
-
-        self.next_target()
-        
         # Publish global path on rviz
-        self.pi.publish_path()
-
+        self._path_pub.publish(path_msg)
+        
+        self.path = path_array
+        
     def next_target(self):
         # Get next waypoint index (by computing offset between robot and each point of the path), wrapping it in case of
         # index out of bounds
-        self.distances = np.linalg.norm(self.path[:, 0:2] - self.x0[:2], axis=1)
-        self.waypoint_idx = np.minimum(self.distances.argmin() + 1, np.shape(self.path)[0] - 1)
+        x0 = (self.state.x, self.state.y)
+        self.distances = np.linalg.norm(self.path[:, 0:2] - x0, axis=1)
+        self.waypoint_idx = self.distances.argmin()
+        while self.waypoint_idx < len(self.distances):
+            if self.THRESHOLD < self.distances[self.waypoint_idx]:
+                break
+            else:
+                self.waypoint_idx += 1
+        else:
+            self.waypoint_idx -= 1
         self.target = (self.path[self.waypoint_idx, 0], self.path[self.waypoint_idx, 1])
             
     def _visualize_data(self):
@@ -217,10 +229,10 @@ class Avoider(object):
         
         # If final distance, don't send control signal
         # Maybe no work, smol hack
-        if self.distances[-1] < 0.2:
+        if self.distances[-1] < self.THRESHOLD:
             return
-        
-        self.steering, self.velocity = self.controller.compute_control(self.target)
+        print(self.target)
+        self.steering, self.velocity = self.controller.compute_control(self.state, self.target)
 
         # Get optimal velocity (by integrating once the acceleration command and summing it to the current speed) and
         # steering controls

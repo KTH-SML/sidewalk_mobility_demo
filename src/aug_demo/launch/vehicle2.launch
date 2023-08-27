@@ -4,7 +4,7 @@
     <!-- Launch file arguments -->
     <arg name="location"    default="kip"/>
 
-    <arg name="nats"        default="false"/>
+    <arg name="nats"        default="true"/>
 
     <arg name="name"        default="svea2"/>
     <arg name="x0"          default="+1.0"/>
@@ -68,7 +68,7 @@
     <node name="vehicle" pkg="aug_demo" type="vehicle2.py" output="screen">
         <rosparam subst_value="true">
         name: $(arg name)
-        state: [$(arg x0) $(arg y0) $(arg a0)]
+        state: [$(arg x0), $(arg y0), $(arg a0)]
         location: $(arg location)
         </rosparam>
     </node>
