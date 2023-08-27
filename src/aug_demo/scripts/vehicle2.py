@@ -136,7 +136,7 @@ class Avoider(object):
         def verify_state_tmr(event):
             if event.last_expected is not None and event.current_real < event.last_expected:
                 return # maybe stupiod
-            self.safe = self.verify_state(self.state._state_msg).ok
+            self.safe = self.verify_state(self.state.state_msg).ok
             print(f'{self.safe=}')
         rospy.Timer(rospy.Duration(0.5), verify_state_tmr)
 
