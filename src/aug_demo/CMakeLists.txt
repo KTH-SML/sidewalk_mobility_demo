@@ -10,7 +10,7 @@ project(aug_demo)
 find_package(catkin REQUIRED COMPONENTS
   svea_core
   rospy
-  nav_msgs
+  svea_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -56,7 +56,7 @@ catkin_python_setup()
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-  RefinePath.srv
+  VerifyState.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -70,7 +70,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
-  nav_msgs
+  svea_msgs
 )
 
 ################################################

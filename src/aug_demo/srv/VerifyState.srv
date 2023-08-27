@@ -1,0 +1,3 @@
+svea_msgs/VehicleState state
+---
+bool ok
