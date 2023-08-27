@@ -4,6 +4,7 @@
     <!-- Options -->
     <arg name="use_cuda"            default="true"/>
     <arg name="enable_bbox_image"   default="false"/>
+    <arg name="frame_id"            default="map"/>
 
     <!-- Consumed topics -->
     <arg name="image"               default="image" />
@@ -42,6 +43,7 @@
         <param name="sub_depth_image"   value="$(arg depth_image)" />
         <param name="sub_objects"       value="$(arg objects)" />
         <param name="pub_objectposes"   value="$(arg objectposes)" />
+        <param name="frame_id"          value="$(arg frame_id)"/>
     </node>
 
 </launch>

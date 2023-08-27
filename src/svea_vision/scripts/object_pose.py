@@ -49,6 +49,8 @@ class object_pose:
         self.PUB_OBJECTPOSES = load_param('~pub_objectposes', 'objectposes')
         self.PUB_OBJECTMARKERS = load_param('~pub_objectmarkers', 'objectmarkers')
 
+        self.FRAME_ID = load_param('~frame_id', 'map')
+
         ## Camera model
 
         self.camera_model = PinholeCameraModel()
@@ -154,7 +156,7 @@ class object_pose:
             ps.point.z = z
 
             # Create point in map frame
-            trans = self.tf_buf.lookup_transform('map', ps.header.frame_id, rospy.Time(0))   
+            trans = self.tf_buf.lookup_transform(self.FRAME_ID, ps.header.frame_id, rospy.Time(0))   
             ps = do_transform_point(ps, trans)
 
             objpose = ObjectPose()
@@ -172,7 +174,7 @@ class object_pose:
 
             objectpose_array = StampedObjectPoseArray()
             objectpose_array.header = object_array.header
-            objectpose_array.header.frame_id = 'map' # we transformed earlier
+            objectpose_array.header.frame_id = self.FRAME_ID # we transformed earlier
             objectpose_array.objects = objects
 
             self.pub_objectposes.publish(objectpose_array)
@@ -185,7 +187,7 @@ class object_pose:
             return
 
         marker = Marker()
-        marker.header.frame_id = 'map'
+        marker.header.frame_id = self.FRAME_ID
         marker.header.stamp = msg.header.stamp
         marker.type = Marker.SPHERE_LIST
         marker.action = 0 

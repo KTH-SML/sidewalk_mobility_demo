@@ -39,10 +39,19 @@
         <include file="$(find svea_sensors)/launch/transforms.launch"/>
         <node pkg="tf" type="static_transform_publisher" name="sensor_broadcaster" output="screen" args="0 0 0 0 0 0 rsu zed_base_link 100"/>
     </group>
+
+    <!--
+    <node if="$(eval location == 'sml')" name="transform_sensor_objects" pkg="aug_demo" type="transform_sensor_objects.py" output="screen">
+        <param name="in_top" value="objectposes"/>
+        <param name="out_top" value="/sensor/objects"/>
+        <param name="to_frame" value="mocap"/>
+    </node>
+    -->
     
     <include file="$(find svea_vision)/launch/zed_main.launch">
         <arg name="enable_bbox_image"   value="true"/>
         <arg name="aruco_size"          value="0.365"/>
+        <arg name="frame_id"            value="mocap" if="$(eval location == 'sml')"/>
     </include>
 
 </launch>

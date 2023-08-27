@@ -5,6 +5,7 @@
     <arg name="use_cuda"            default="true"/>
     <arg name="enable_bbox_image"   default="false"/>
     <arg name="enable_aruco"        default="false"/>
+    <arg name="frame_id"            default="map"/>
 
     <!-- Auxiliary -->
     <arg name="only_objects"        default=""/>
@@ -27,6 +28,7 @@
         <!-- Options -->
         <arg name="use_cuda"            value="$(arg use_cuda)"/>
         <arg name="enable_bbox_image"   value="$(arg enable_bbox_image)"/>
+        <arg name="frame_id"            value="$(arg frame_id)"/>
         <!-- Consumed topics -->
         <arg name="image"               value="$(arg image)"/>
         <arg name="depth_image"         value="$(arg depth_image)"/>
