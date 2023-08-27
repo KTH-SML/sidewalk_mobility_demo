@@ -12,7 +12,7 @@
         subscribers:
           - sensor/objects
         services:
-          - ltms/refine_path
+          - ltms/verify_state
         </rosparam>
     </node>
 

@@ -60,7 +60,8 @@
           - vehicle/path
           - vehicle/pose
         service_proxies:
-          - ltms/refine_path
+          - name: ltms/verify_state
+            type: aug_demo/VerifyState
         </rosparam>
     </node>
 

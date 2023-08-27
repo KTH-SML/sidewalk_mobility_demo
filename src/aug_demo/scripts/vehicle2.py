@@ -77,6 +77,7 @@ class Avoider(object):
         self.STATE = load_param('~state', [0, 0, 0, 0])
         self.LOCATION = load_param('~location', 'kip')
 
+        rospy.wait_for_service('ltms/verify_state')
         self.verify_state = rospy.ServiceProxy('ltms/verify_state', VerifyState)
 
         self.rate = rospy.Rate(10)
