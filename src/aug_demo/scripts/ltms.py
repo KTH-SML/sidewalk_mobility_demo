@@ -47,7 +47,7 @@ class LTMS(object):
 
         # self.solver = HJSolver(self.grid, self.time_frame, self.model)
         
-        self.peds_sub = rospy.Subscriber(self.ped_pos_topic, StampedObjectPoseArray, self.peds_cb)
+        self.peds_sub = rospy.Subscriber('sensor/objects', StampedObjectPoseArray, self.peds_cb)
 
         self.verify_state = rospy.Service('ltms/verify_state', VerifyState, self.verify_state_srv)
         

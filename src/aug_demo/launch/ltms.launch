@@ -9,6 +9,8 @@
     <node if="$(arg nats)" name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
         <rosparam>
         host: sml-wan.asuscomm.com
+        subscribers:
+          - sensor/objects
         services:
           - ltms/refine_path
         </rosparam>
