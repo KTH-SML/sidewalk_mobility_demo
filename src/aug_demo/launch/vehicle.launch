@@ -40,13 +40,15 @@
         </include>
 
         <!-- Adapter node from mocap Pose to VehicleState -->
+        <!--
         <node name="adapter_pose_to_vehicle_state" pkg="svea_mocap" type="adapter_pose_to_vehicle_state.py"
         output="screen">
             <param name="input_topic" value="/qualisys/$(arg mocap_name)/pose"/>
             <param name="velocity_topic" value="/qualisys/$(arg mocap_name)/velocity"/>
-	    <param name="output_topic" value="/state"/>
+	        <param name="output_topic" value="/state"/>
             <param name="state_verbose" value="false"/>
         </node>
+        -->
 
         <!-- Static Transforms-->
         <include file="$(find svea_sensors)/launch/transforms.launch"/>

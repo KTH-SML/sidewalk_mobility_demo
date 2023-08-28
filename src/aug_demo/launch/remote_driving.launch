@@ -7,6 +7,9 @@
     <arg name="vehicle_name"    default="svea2"/>
     <arg name="name"            default="remote_driving"/>
 
+    <!-- Start map server -->
+    <node if="$(eval location == 'sml')" name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/sml.yaml" output="screen"/>
+
     <!-- Start NATS -->
     <node if="$(arg nats)" name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
         <remap from="$(arg vehicle_name)/remote/ctrl_request" to="lli/ctrl_request"/>

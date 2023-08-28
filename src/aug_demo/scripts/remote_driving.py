@@ -59,7 +59,7 @@ class remote_driving(object):
         self._path_lock = Lock()
 
         # Start localization interface based on which localization method is being used
-        self.localizer = LocalizationInterface().start()
+        self.localizer = LocalizationInterface(self.VEHICLE_NAME).start()
         self.state = self.localizer.state
 
         # Start actuation interface 

@@ -53,7 +53,29 @@ class Avoider(object):
         self.NAME = load_param('~name', 'svea')
         self.LOCATION = load_param('~location', 'kip')
 
-        self.localizer = LocalizationInterface(self.NAME).start()
+        if self.LOCATION == 'sml':
+            self._state_pub = rospy.Publisher('state', VehicleStateMsg, latch=True, queue_size=1)
+            def state_cb(pose, twist):
+                state = VehicleStateMsg()
+                state.header = pose.header
+                state.child_frame_id = 'svea2'
+                state.x = pose.pose.position.x 
+                state.y = pose.pose.position.y
+                roll, pitch, yaw = euler_from_quaternion([pose.pose.orientation.x,
+                                                        pose.pose.orientation.y,
+                                                        pose.pose.orientation.z,
+                                                        pose.pose.orientation.w])
+                state.yaw = yaw
+                state.v = twist.twist.linear.x
+                self._state_pub.publish(state)
+            mf.TimeSynchronizer([
+                mf.Subscriber(f'/qualisys/{self.NAME}/pose', PoseStamped),
+                mf.Subscriber(f'/qualisys/{self.NAME}/velocity', TwistStamped)
+            ], 10).registerCallback(state_cb)
+
+            self._target_pub = rospy.Publisher('target', PointStamped, latch=True, queue_size=1)
+
+        self.localizer = LocalizationInterface().start()
         self.state = self.localizer.state
 
         while not self.localizer.is_ready:
