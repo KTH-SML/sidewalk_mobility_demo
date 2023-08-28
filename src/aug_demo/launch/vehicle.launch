@@ -36,14 +36,17 @@
         </include>
 
         <include file="$(find svea_mocap)/launch/map_correction.launch">
-            <arg name="map" value="$(arg map)"/>
+            <arg name="map" value="sml"/>
         </include>
 
-        <include file="$(find svea_mocap)/launch/mocap_to_state.launch">
-            <arg name="mocap_name" value="$(arg mocap_name)"/>
-            <arg name="input_topic" default="/qualisys/$(arg mocap_name)/pose"/>
-            <arg name="velocity_topic" default="/qualisys/$(arg mocap_name)/velocity"/>
-        </include>
+        <!-- Adapter node from mocap Pose to VehicleState -->
+        <node name="adapter_pose_to_vehicle_state" pkg="svea_mocap" type="adapter_pose_to_vehicle_state.py"
+        output="screen">
+            <param name="input_topic" value="/qualisys/$(arg mocap_name)/pose"/>
+            <param name="velocity_topic" value="/qualisys/$(arg mocap_name)/velocity"/>
+	    <param name="output_topic" value="/state"/>
+            <param name="state_verbose" value="false"/>
+        </node>
 
         <!-- Static Transforms-->
         <include file="$(find svea_sensors)/launch/transforms.launch"/>
@@ -63,9 +66,9 @@
         publishers:
           - $(arg name)/state
           - $(arg name)/path
-        service_proxies:
-          - name: ltms/verify_state
-            type: aug_demo/VerifyState
+        # service_proxies:
+        #   - name: ltms/verify_state
+        #     type: aug_demo/VerifyState
         </rosparam>
     </node>
 
