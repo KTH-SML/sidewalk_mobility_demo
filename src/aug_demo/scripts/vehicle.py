@@ -75,6 +75,11 @@ class Avoider(object):
 
             self._target_pub = rospy.Publisher('target', PointStamped, latch=True, queue_size=1)
 
+        from visualization_msgs.msg import Marker
+        marker_pub = rospy.Publisher('pedestrians', Marker, queue_size=10)
+        rospy.Subscriber('/sensor/markers', Marker, marker_pub.publish)
+        
+
         self.localizer = LocalizationInterface().start()
         self.state = self.localizer.state
 
