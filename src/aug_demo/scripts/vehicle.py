@@ -62,9 +62,9 @@ class Avoider(object):
                 state.x = pose.pose.position.x 
                 state.y = pose.pose.position.y
                 roll, pitch, yaw = euler_from_quaternion([pose.pose.orientation.x,
-                                                        pose.pose.orientation.y,
-                                                        pose.pose.orientation.z,
-                                                        pose.pose.orientation.w])
+                                                          pose.pose.orientation.y,
+                                                          pose.pose.orientation.z,
+                                                          pose.pose.orientation.w])
                 state.yaw = yaw
                 state.v = twist.twist.linear.x
                 self._state_pub.publish(state)
@@ -83,8 +83,8 @@ class Avoider(object):
                 raise Exception("Shutdown before initialization was done.")
             rospy.sleep(0.1)
 
-        # rospy.wait_for_service('ltms/verify_state')
-        # self.verify_state = rospy.ServiceProxy('ltms/verify_state', VerifyState)
+        rospy.wait_for_service('ltms/verify_state')
+        self.verify_state = rospy.ServiceProxy('ltms/verify_state', VerifyState)
 
         self.safe = True
         def verify_state_tmr(event):
@@ -92,7 +92,7 @@ class Avoider(object):
                 return # maybe stupiod
             self.safe = self.verify_state(self.state.state_msg).ok
             print(f'{self.safe=}')
-        # rospy.Timer(rospy.Duration(0.5), verify_state_tmr)
+        rospy.Timer(rospy.Duration(0.5), verify_state_tmr)
         rospy.sleep(1)
 
         self.lli_pub = rospy.Publisher('lli/ctrl_request', lli_ctrl, queue_size=1)

@@ -15,7 +15,7 @@ from odp.spect import Grid, SVEA
 
 class LTMS(object):
 
-    PADDING = 0.3
+    PADDING = 0.6
 
     def __init__(self):
         """Init method for SocialNavigation class."""
