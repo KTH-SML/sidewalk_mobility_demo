@@ -38,6 +38,18 @@ def load_param(name, value=None):
         assert rospy.has_param(name), f'Missing parameter "{name}"'
     return rospy.get_param(name, value)
 
+def state_to_pose(state):
+    pose = PoseStamped()
+    pose.header = state.header
+    pose.pose.position.x = state.x
+    pose.pose.position.y = state.y
+    qx, qy, qz, qw = quaternion_from_euler(0, 0, state.yaw)
+    pose.pose.orientation.x = qx
+    pose.pose.orientation.y = qy
+    pose.pose.orientation.z = qz
+    pose.pose.orientation.w = qw
+    return pose
+
 class remote_driving(object):
 
     THRESHOLD = 0.2
@@ -54,9 +66,11 @@ class remote_driving(object):
         self.VEHICLE_NAME = load_param('~vehicle_name', 'svea')
         self.LOCATION = load_param('~location', 'kip')
 
+        self._pose_topic = load_param('~pose_topic', 'pose')
+        self._pose_pub = rospy.Publisher(self._pose_topic, PoseStamped, latch=True, queue_size=1)
+
         self._path_topic = load_param('~path_topic', 'path')
         self._path_pub = rospy.Publisher(self._path_topic, Path, latch=True, queue_size=1)
-        self._path_lock = Lock()
 
         # Start localization interface based on which localization method is being used
         self.localizer = LocalizationInterface(self.VEHICLE_NAME).start()
@@ -123,7 +137,7 @@ class remote_driving(object):
         if abs(velocity) < 0.2:
             path_from_track = np.array([start_point[:2]])
         else:
-            arc = Arc(HEADWAY*velocity, 1/BASEWIDTH * np.tan(steering))
+            arc = Arc(HEADWAY*velocity, np.tan(steering))
             track = Track([arc], *start_point, POINT_DENSITY=POINT_DENSITY)
             path_from_track = np.array(track.cartesian).T
 
@@ -150,8 +164,7 @@ class remote_driving(object):
         self._path_pub.publish(path_msg)
         
     def _visualize_data(self):
-        self.data_handler.log_state(self.state)
-        self.data_handler.visualize_data()
+        self._pose_pub.publish(state_to_pose(self.state.state_msg))
 
     def keep_alive(self):
         """

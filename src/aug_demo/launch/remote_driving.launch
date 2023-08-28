@@ -22,6 +22,21 @@
         </rosparam>
     </node>
 
+    <!-- Motion Capture System -->
+    <group if="$(eval location == 'sml')">
+        <arg name="mocap_address" value="10.0.0.10"/>
+        <arg name="mocap_name"    value="$(arg vehicle_name)"/>
+
+        <include file="$(find svea_mocap)/launch/map_correction.launch">
+            <arg name="map" value="sml"/>
+        </include>
+
+        <!-- Static Transforms-->
+        <include file="$(find svea_sensors)/launch/transforms.launch"/>
+        <node name="tf_odom_to_base_link" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 odom base_link 100" />
+        <node name="tf_map_to_odom" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 map odom 100" />
+    </group>
+
     <!-- Logitech G29 controller input -->
     <node pkg="joy" type="joy_node" name="joy">
         <param name="coalesce_interval" type="double" value="0.02"/>
