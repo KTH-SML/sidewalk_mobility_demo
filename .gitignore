@@ -13,3 +13,6 @@ src/.vscode/
 
 venv/
 site/
+
+src/aug_demo/src/hcl_mlir-0.1-py3-none-manylinux_2_31_x86_64.whl
+src/aug_demo/src/heterocl-0.5-py3-none-manylinux_2_31_x86_64.whl
