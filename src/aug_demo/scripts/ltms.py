@@ -6,8 +6,6 @@ import rospy
 
 from aug_demo.srv import VerifyState, VerifyStateResponse
 from rsu_msgs.msg import StampedObjectPoseArray
-from geometry_msgs.msg import PoseStamped
-from nav_msgs.msg import Path
 
 from odp.shapes import *
 from odp.solver import HJSolver 
@@ -92,8 +90,9 @@ class LTMS(object):
         iy = np.abs(self.grid.grid_points[1] - req.state.y).argmin()
         iyaw = np.abs(self.grid.grid_points[2] - req.state.yaw).argmin()
         ivel = np.abs(self.grid.grid_points[3] - req.state.yaw).argmin()
+        ok = bool(result[ix, iy, iyaw, ivel] <= 0)
 
-        return VerifyStateResponse(ok=bool(result[ix, iy, iyaw, ivel] <= 0))
+        return VerifyStateResponse(ok=ok)
 
     def keep_alive(self):
         """
