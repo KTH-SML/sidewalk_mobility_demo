@@ -37,7 +37,6 @@ class Solver:
         self.ctrl_shape = (self.model.ctrl_dims,)
         self.dstb_shape = (self.model.dstb_dims,)
 
-        self._is_built = False
         self._program = None
 
     def build(self, debug=False):
@@ -246,12 +245,6 @@ class HJSolver(Solver):
     _grid: Grid
     _accuracy: str
 
-    _target: np.ndarray
-    _target_mode: str
-
-    _constraint: np.ndarray # should always be time-varying
-    _constraint_mode: str
-
     def __init__(self, grid, tau, model, **kwargs):
         super().__init__(grid, model, **kwargs)
 
@@ -260,7 +253,7 @@ class HJSolver(Solver):
         self._model = model
 
         # Get executable, obstacle check intial value function
-        solve_pde = self.build(debug=False)
+        self.build(debug=False)
 
     def __call__(self, *,
                  target, target_mode, 
@@ -271,16 +264,12 @@ class HJSolver(Solver):
 
             print("Initializing...")
 
-        self._target = target
-        self._target_mode = target_mode
-        assert self._target.shape == self.grid.shape + self._tau.shape
-        assert self._target_mode in ('max', 'min')
+        assert target.shape == self.grid.shape + self._tau.shape
+        assert target_mode in ('max', 'min')
 
         if constraint is not None:
-            self._constraint = constraint
-            self._constraint_mode = constraint_mode
-            assert self._constraint.shape == self.grid.shape + self._tau.shape
-            assert self._constraint_mode in ('max', 'min')
+            assert constraint.shape == self.grid.shape + self._tau.shape
+            assert constraint_mode in ('max', 'min')
 
         # Get executable, obstacle check intial value function
         solve_pde = self.build(debug=debug)
@@ -289,7 +278,7 @@ class HJSolver(Solver):
             print('> Solver built!')
 
         # Tensor input to our computation graph
-        vf = self._target[..., -1].copy()
+        vf = target[..., -1]
         t = np.flip(self._tau)
         xs = [ax.flatten() for ax in self._grid.vs]
 
@@ -311,7 +300,7 @@ class HJSolver(Solver):
 
             vf = out[..., i+1]
 
-            pde_args = [vf.copy(), np.array((now, t[i])), *xs]
+            pde_args = [vf.copy(), np.array([now, t[i]]), *xs]
             pde_args = list(map(hcl.asarray, pde_args))
 
             if debug:
@@ -344,16 +333,16 @@ class HJSolver(Solver):
                 if self.interactive:
                     print(f"> Integration time: {end - start:.5f} s", end="\r", flush=True)
 
-            if self._target_mode == 'min':
-                vf = np.minimum(vf, self._target[..., i])
+            if target_mode == 'min':
+                vf = np.minimum(vf, target[..., i])
             else:
-                vf = np.maximum(vf, self._target[..., i])
+                vf = np.maximum(vf, target[..., i])
 
             if hasattr(self, '_constraint'):
-                if self._constraint_mode == 'min':
-                    vf = np.minimum(vf, -self._constraint[..., i])
+                if constraint_mode == 'min':
+                    vf = np.minimum(vf, -constraint[..., i])
                 else:
-                    vf = np.maximum(vf, -self._constraint[..., i])
+                    vf = np.maximum(vf, -constraint[..., i])
 
             out[..., i] = vf
 
