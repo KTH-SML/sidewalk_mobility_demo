@@ -7,7 +7,6 @@ import rospy
 from aug_demo.srv import VerifyState, VerifyStateResponse
 from rsu_msgs.msg import StampedObjectPoseArray
 from svea_msgs.msg import VehicleState as VehicleStateMsg
-from nav_msgs.msg import Path
 
 from geometry_msgs.msg import PoseStamped
 
@@ -16,9 +15,9 @@ import tf2_geometry_msgs
 from tf import transformations 
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
-# from odp.shapes import *
-# from odp.solver import HJSolver 
-# from odp.spect import Grid, SVEA
+from odp.shapes import *
+from odp.solver import HJSolver 
+from odp.spect import Grid, SVEA
 
 def state_to_pose(state):
     pose = PoseStamped()
@@ -97,9 +96,6 @@ class LTMS(object):
         self.peds = []
         self.peds_sub = rospy.Subscriber('sensor/objects', StampedObjectPoseArray, self.peds_cb)
 
-        self.path = Path()
-        self.path_sub = rospy.Subscriber('svea2/remote/path', Path, lambda msg: setattr(self, 'path', msg))
-
         self.verify_state = rospy.Service('ltms/verify_state', VerifyState, self.verify_state_srv)
         
         self.state_pub = rospy.Publisher('state_in_map', VehicleStateMsg, queue_size=1)
@@ -123,7 +119,7 @@ class LTMS(object):
 
         state = req.state
         state_pose = state_to_pose(state)
-        trans = self.buffer.lookup_transform("sensor", state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
+        trans = self.buffer.lookup_transform("sensor_map", state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
         pose = tf2_geometry_msgs.do_transform_pose(state_pose, trans)
         new_state = pose_to_state(pose)
         new_state.v = state.v
@@ -132,11 +128,6 @@ class LTMS(object):
 
 
         return VerifyStateResponse(True)
-
-        if self.LOCATION == 'kip':
-            pass # transform state to sensor map
-
-        print(self.path)
 
         peds = []
         for ped_header, x, y in self.peds:

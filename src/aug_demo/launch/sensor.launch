@@ -27,7 +27,7 @@
     <include if="$(eval location =='kip')" file="$(find aug_demo)/launch/broadcast_sensor.launch"/>
 
     <node pkg="tf" type="static_transform_publisher" name="map_broadcaster" output="screen" 
-        args="0 0 0 0 0 0 sensor map 100"/>
+        args="0 0 0 0 0 0 sensor_map map 100"/>
 
     <node if="$(eval location == 'kip')" pkg="tf" type="static_transform_publisher" name="odom_broadcaster" output="screen" 
         args="0 0 0 0 0 0 map odom 100"/>
