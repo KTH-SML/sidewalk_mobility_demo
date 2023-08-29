@@ -6,10 +6,42 @@ import rospy
 
 from aug_demo.srv import VerifyState, VerifyStateResponse
 from rsu_msgs.msg import StampedObjectPoseArray
+from svea_msgs.msg import VehicleState as VehicleStateMsg
 
-from odp.shapes import *
-from odp.solver import HJSolver 
-from odp.spect import Grid, SVEA
+from geometry_msgs.msg import PoseStamped
+
+import tf2_ros
+import tf2_geometry_msgs
+from tf import transformations 
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
+
+# from odp.shapes import *
+# from odp.solver import HJSolver 
+# from odp.spect import Grid, SVEA
+
+def state_to_pose(state):
+    pose = PoseStamped()
+    pose.header = state.header
+    pose.pose.position.x = state.x
+    pose.pose.position.y = state.y
+    qx, qy, qz, qw = quaternion_from_euler(0, 0, state.yaw)
+    pose.pose.orientation.x = qx
+    pose.pose.orientation.y = qy
+    pose.pose.orientation.z = qz
+    pose.pose.orientation.w = qw
+    return pose
+
+def pose_to_state(pose):
+    state = VehicleStateMsg()
+    state.header = pose.header
+    state.x = pose.pose.position.x
+    state.y = pose.pose.position.y
+    roll, pitch, yaw = euler_from_quaternion([pose.pose.orientation.x,
+                                              pose.pose.orientation.y,
+                                              pose.pose.orientation.z,
+                                              pose.pose.orientation.w])
+    state.yaw = yaw
+    return state
 
 class LTMS(object):
 
@@ -50,6 +82,11 @@ class LTMS(object):
 
         self.verify_state = rospy.Service('ltms/verify_state', VerifyState, self.verify_state_srv)
         
+        self.state_pub = rospy.Publisher('state_in_map', VehicleStateMsg, queue_size=1)
+        self.buffer = tf2_ros.Buffer(rospy.Duration(10))
+        self.listener = tf2_ros.TransformListener(self.buffer)
+        self.br = tf2_ros.TransformBroadcaster()
+
         rospy.loginfo('Start')
 
     def peds_cb(self, msg):
@@ -64,7 +101,17 @@ class LTMS(object):
 
     def verify_state_srv(self, req):
 
-        # return VerifyStateResponse(True)
+        state = req.state
+        state_pose = state_to_pose(state)
+        trans = self.buffer.lookup_transform("sensor", state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
+        pose = tf2_geometry_msgs.do_transform_pose(state_pose, trans)
+        new_state = pose_to_state(pose)
+        new_state.v = state.v
+
+        self.state_pub.publish(new_state)
+
+
+        return VerifyStateResponse(True)
 
         peds = []
         for ped_header, x, y in self.peds:

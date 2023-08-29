@@ -13,12 +13,14 @@
     <!-- Start NATS -->
     <node if="$(arg nats)" name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
         <remap from="$(arg vehicle_name)/remote/ctrl_request" to="lli/ctrl_request"/>
+        <remap from="$(arg vehicle_name)/remote/path" to="path"/>
         <rosparam subst_value="true">
             host: sml-wan.asuscomm.com
             subscribers:
               - $(arg vehicle_name)/state
             publishers:
               - $(arg vehicle_name)/remote/ctrl_request
+              - $(arg vehicle_name)/remote/path
         </rosparam>
     </node>
 
