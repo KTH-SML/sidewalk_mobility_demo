@@ -61,6 +61,8 @@ class LTMS(object):
 
     PADDING = 0.6
 
+    DEMO_AREA_CENTER = (-2.5, 0) # x, y from sensor_map
+
     def __init__(self):
         """Init method for SocialNavigation class."""
 
@@ -121,14 +123,24 @@ class LTMS(object):
         trans = self.buffer.lookup_transform("sensor_map", utm_state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
         svea_pose = tf2_geometry_msgs.do_transform_pose(state_pose, trans)
         map_state = pose_to_state(svea_pose)
-        map_state.v  = utm_state.v 
+        map_state.v  = utm_state.v
+
+        if self.LOCATION == 'kip':
+            map_state.x += self.DEMO_AREA_CENTER[0]
+            map_state.y += self.DEMO_AREA_CENTER[1]
+        
         # return VerifyStateResponse(True)
 
         peds = []
         for ped_header, x, y in self.peds:
-            if not req.state.header.frame_id == ped_header.frame_id:
-                print(f'Warning! vehicle frame not same as pedestrian frame ({req.state.header.frame_id} != {ped_header.frame_id})')
-                continue
+            
+            if self.LOCATION == 'kip':
+                x += self.DEMO_AREA_CENTER[0]
+                y += self.DEMO_AREA_CENTER[1]
+
+            # if not req.state.header.frame_id == ped_header.frame_id:
+            #     print(f'Warning! vehicle frame not same as pedestrian frame ({req.state.header.frame_id} != {ped_header.frame_id})')
+            #     continue
             if not self.grid.grid_points[0][0] < x < self.grid.grid_points[0][-1]:
                 continue
             if not self.grid.grid_points[1][0] < x < self.grid.grid_points[1][-1]:
@@ -138,6 +150,8 @@ class LTMS(object):
                                lower_half_space(self.grid, 1, y + self.PADDING), 
                                upper_half_space(self.grid, 1, y - self.PADDING))
             peds.append(ped)
+            
+            # print('ped distance:', np.hypot(x - map_state.x, y - map_state.y))
 
         target = union(*peds) if peds else np.ones(self.grid.shape)
 
@@ -147,7 +161,7 @@ class LTMS(object):
         ix = np.abs(self.grid.grid_points[0] - map_state.x).argmin()
         iy = np.abs(self.grid.grid_points[1] - map_state.y).argmin()
         iyaw = np.abs(self.grid.grid_points[2] - map_state.yaw).argmin()
-        ivel = np.abs(self.grid.grid_points[3] - map_state.vel).argmin()
+        ivel = np.abs(self.grid.grid_points[3] - map_state.v).argmin()
         ok = bool(result[ix, iy, iyaw, ivel] <= 0)
 
         return VerifyStateResponse(ok=ok)
