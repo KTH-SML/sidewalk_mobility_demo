@@ -148,8 +148,8 @@ class Avoider(object):
         """Run node."""
         rospy.spin()
 
-    def state_in_utm_callback(self, req):
-        state = req.state
+    def state_in_utm_callback(self, state_obj):
+        state = state_obj.state_msg
         state_pose = state_to_pose(state)
         trans = self.buffer.lookup_transform("utm", state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
         pose = tf2_geometry_msgs.do_transform_pose(state_pose, trans)
