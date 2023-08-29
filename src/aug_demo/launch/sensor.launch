@@ -11,12 +11,10 @@
     <!-- Start NATS -->
     <node if="$(arg nats)" name="nats_connector" pkg="nats_ros_connector" type="nats_connector.py" output="screen">
         <remap from="sensor/objects" to="objectposes"/>
-        <remap from="sensor/markers" to="objectmarkers"/>
         <rosparam>
         host: sml-wan.asuscomm.com
         publishers:
           - sensor/objects
-          - sensor/markers
         </rosparam>
     </node>
 

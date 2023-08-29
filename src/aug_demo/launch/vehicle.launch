@@ -65,10 +65,8 @@
         srv_req_timeout: 10
         subscribers:
           - $(arg name)/remote/ctrl_request
-          - sensor/markers
         publishers:
           - $(arg name)/state
-          - $(arg name)/path
         service_proxies:
           - name: ltms/verify_state
             type: aug_demo/VerifyState

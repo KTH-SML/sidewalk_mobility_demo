@@ -98,10 +98,6 @@ class LTMS(object):
 
         self.verify_state = rospy.Service('ltms/verify_state', VerifyState, self.verify_state_srv)
         
-        from visualization_msgs.msg import Marker
-        rospy.Subscriber('sensor/markers', Marker)
-        self.state_pose_pub = rospy.Publisher('svea2/pose', PoseStamped, queue_size=1)
-        self.state_pub = rospy.Publisher('state_in_map', VehicleStateMsg, queue_size=1)
         self.buffer = tf2_ros.Buffer(rospy.Duration(10))
         self.listener = tf2_ros.TransformListener(self.buffer)
         self.br = tf2_ros.TransformBroadcaster()
@@ -119,20 +115,14 @@ class LTMS(object):
         return self.solver(target=target, target_mode='min')
 
     def verify_state_srv(self, req):
-
-        state = req.state
-        state_pose = state_to_pose(state)
-        trans = self.buffer.lookup_transform("sensor_map", state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
-        pose = tf2_geometry_msgs.do_transform_pose(state_pose, trans)
-        self.state_pose_pub.publish(pose)
-        new_state = pose_to_state(pose)
-        new_state.v = state.v
-
-        self.state_pub.publish(new_state)
-
-        print(new_state)
-
-        return VerifyStateResponse(True)
+        # utm_state is either in utm frame or mocap frame, depending on location
+        utm_state = req.state
+        state_pose = state_to_pose(utm_state)
+        trans = self.buffer.lookup_transform("sensor_map", utm_state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
+        svea_pose = tf2_geometry_msgs.do_transform_pose(state_pose, trans)
+        map_state = pose_to_state(svea_pose)
+        map_state.v  = utm_state.v 
+        # return VerifyStateResponse(True)
 
         peds = []
         for ped_header, x, y in self.peds:
@@ -154,10 +144,10 @@ class LTMS(object):
         result = self.compute_brs(target=target)
         result = -result.min(axis=-1)
 
-        ix = np.abs(self.grid.grid_points[0] - req.state.x).argmin()
-        iy = np.abs(self.grid.grid_points[1] - req.state.y).argmin()
-        iyaw = np.abs(self.grid.grid_points[2] - req.state.yaw).argmin()
-        ivel = np.abs(self.grid.grid_points[3] - req.state.yaw).argmin()
+        ix = np.abs(self.grid.grid_points[0] - map_state.x).argmin()
+        iy = np.abs(self.grid.grid_points[1] - map_state.y).argmin()
+        iyaw = np.abs(self.grid.grid_points[2] - map_state.yaw).argmin()
+        ivel = np.abs(self.grid.grid_points[3] - map_state.vel).argmin()
         ok = bool(result[ix, iy, iyaw, ivel] <= 0)
 
         return VerifyStateResponse(ok=ok)

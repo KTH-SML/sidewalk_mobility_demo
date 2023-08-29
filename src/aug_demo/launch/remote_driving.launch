@@ -20,7 +20,6 @@
               - $(arg vehicle_name)/state
             publishers:
               - $(arg vehicle_name)/remote/ctrl_request
-              - $(arg vehicle_name)/remote/path
         </rosparam>
     </node>
 

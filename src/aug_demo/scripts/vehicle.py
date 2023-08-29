@@ -104,17 +104,11 @@ class Avoider(object):
 
             self._target_pub = rospy.Publisher('target', PointStamped, latch=True, queue_size=1)
 
-        from visualization_msgs.msg import Marker
-        marker_pub = rospy.Publisher('pedestrians', Marker, queue_size=10)
-        rospy.Subscriber('/sensor/markers', Marker, marker_pub.publish)
-        
-        self.state_svea_pub = rospy.Publisher('svea_in_utm', VehicleStateMsg, queue_size=1)
         self.buffer = tf2_ros.Buffer(rospy.Duration(10))
         self.listener = tf2_ros.TransformListener(self.buffer)
         self.br = tf2_ros.TransformBroadcaster()
 
         self.localizer = LocalizationInterface().start()
-        self.localizer.add_callback(self.state_in_utm_callback)
         self.state = self.localizer.state
 
         while not self.localizer.is_ready:
@@ -156,7 +150,6 @@ class Avoider(object):
         new_state = pose_to_state(pose)
         new_state.v = state.v
         new_state.child_frame_id = state.child_frame_id
-        self.state_svea_pub.publish(new_state)
 
         return new_state    
 if __name__ == '__main__':

@@ -14,10 +14,6 @@
         host: sml-wan.asuscomm.com
         subscribers:
           - sensor/objects
-          - sensor/markers
-          - svea2/state
-          - svea2/pose
-          - svea2/remote/path
         services:
           - $(arg name)/verify_state
         </rosparam>
