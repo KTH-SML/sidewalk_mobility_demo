@@ -118,14 +118,14 @@ class LTMS(object):
 
     def verify_state_srv(self, req):
         # utm_state is either in utm frame or mocap frame, depending on location
-        utm_state = req.state
-        state_pose = state_to_pose(utm_state)
-        trans = self.buffer.lookup_transform("sensor_map", utm_state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
-        svea_pose = tf2_geometry_msgs.do_transform_pose(state_pose, trans)
-        map_state = pose_to_state(svea_pose)
-        map_state.v  = utm_state.v
-
         if self.LOCATION == 'kip':
+            utm_state = req.state
+            state_pose = state_to_pose(utm_state)
+            trans = self.buffer.lookup_transform("sensor_map", utm_state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
+            svea_pose = tf2_geometry_msgs.do_transform_pose(state_pose, trans)
+            map_state = pose_to_state(svea_pose)
+            map_state.v  = utm_state.v
+
             map_state.x += self.DEMO_AREA_CENTER[0]
             map_state.y += self.DEMO_AREA_CENTER[1]
         
