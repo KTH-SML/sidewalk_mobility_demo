@@ -24,7 +24,36 @@ from sensor_msgs.msg import Joy
 from nav_msgs.msg import Path
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
+import tf2_ros
+import tf2_geometry_msgs
+from tf import transformations 
+
+
 from aug_demo.srv import VerifyState
+
+def state_to_pose(state):
+    pose = PoseStamped()
+    pose.header = state.header
+    pose.pose.position.x = state.x
+    pose.pose.position.y = state.y
+    qx, qy, qz, qw = quaternion_from_euler(0, 0, state.yaw)
+    pose.pose.orientation.x = qx
+    pose.pose.orientation.y = qy
+    pose.pose.orientation.z = qz
+    pose.pose.orientation.w = qw
+    return pose
+
+def pose_to_state(pose):
+    state = VehicleStateMsg()
+    state.header = pose.header
+    state.x = pose.pose.position.x
+    state.y = pose.pose.position.y
+    roll, pitch, yaw = euler_from_quaternion([pose.pose.orientation.x,
+                                              pose.pose.orientation.y,
+                                              pose.pose.orientation.z,
+                                              pose.pose.orientation.w])
+    state.yaw = yaw
+    return state
 
 def load_param(name, value=None):
     """Function used to get parameters from ROS parameter server
@@ -79,15 +108,21 @@ class Avoider(object):
         marker_pub = rospy.Publisher('pedestrians', Marker, queue_size=10)
         rospy.Subscriber('/sensor/markers', Marker, marker_pub.publish)
         
+        rospy.Subscriber('state', VehicleStateMsg, self.state_in_utm_callback, queue_size=1)
+        self.state_svea_pub = rospy.Publisher('svea_in_utm', VehicleStateMsg, queue_size=1)
+        self.buffer = tf2_ros.Buffer(rospy.Duration(10))
+        self.listener = tf2_ros.TransformListener(self.buffer)
+        self.br = tf2_ros.TransformBroadcaster()
 
         self.localizer = LocalizationInterface().start()
+        self.localizer.add_callback(self.state_in_utm_callback)
         self.state = self.localizer.state
 
         while not self.localizer.is_ready:
             if rospy.is_shutdown():
                 raise Exception("Shutdown before initialization was done.")
             rospy.sleep(0.1)
-
+        
         rospy.wait_for_service('ltms/verify_state')
         self.verify_state = rospy.ServiceProxy('ltms/verify_state', VerifyState)
 
@@ -112,6 +147,16 @@ class Avoider(object):
     def run(self):
         """Run node."""
         rospy.spin()
+
+    def state_in_utm_callback(self, req):
+        state = req.state
+        state_pose = state_to_pose(state)
+        trans = self.buffer.lookup_transform("utm", state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
+        pose = tf2_geometry_msgs.do_transform_pose(state_pose, trans)
+        new_state = pose_to_state(pose)
+        new_state.v = state.v
+
+        self.state_svea_pub.publish(new_state)
 
 
 if __name__ == '__main__':
