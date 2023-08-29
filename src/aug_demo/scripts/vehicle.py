@@ -108,7 +108,6 @@ class Avoider(object):
         marker_pub = rospy.Publisher('pedestrians', Marker, queue_size=10)
         rospy.Subscriber('/sensor/markers', Marker, marker_pub.publish)
         
-        rospy.Subscriber('state', VehicleStateMsg, self.state_in_utm_callback, queue_size=1)
         self.state_svea_pub = rospy.Publisher('svea_in_utm', VehicleStateMsg, queue_size=1)
         self.buffer = tf2_ros.Buffer(rospy.Duration(10))
         self.listener = tf2_ros.TransformListener(self.buffer)
@@ -125,12 +124,13 @@ class Avoider(object):
         
         rospy.wait_for_service('ltms/verify_state')
         self.verify_state = rospy.ServiceProxy('ltms/verify_state', VerifyState)
-
+        rospy.sleep(4)
         self.safe = True
         def verify_state_tmr(event):
             if event.last_expected is not None and event.current_real < event.last_expected:
                 return # maybe stupiod
-            self.safe = self.verify_state(self.state.state_msg).ok
+            state_msg = self.state_in_utm_callback(self.state)
+            self.safe = self.verify_state(state_msg).ok
             print(f'{self.safe=}')
         rospy.Timer(rospy.Duration(0.5), verify_state_tmr)
         rospy.sleep(1)
@@ -149,16 +149,16 @@ class Avoider(object):
         rospy.spin()
 
     def state_in_utm_callback(self, state_obj):
-        state = state_obj.state_msg
+        state = state_obj.state_msg 
         state_pose = state_to_pose(state)
         trans = self.buffer.lookup_transform("utm", state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
         pose = tf2_geometry_msgs.do_transform_pose(state_pose, trans)
         new_state = pose_to_state(pose)
         new_state.v = state.v
-
+        new_state.child_frame_id = state.child_frame_id
         self.state_svea_pub.publish(new_state)
 
-
+        return new_state    
 if __name__ == '__main__':
 
     ## Start node ##
