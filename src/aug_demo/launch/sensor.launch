@@ -31,7 +31,7 @@
     <node if="$(eval location == 'kip')" pkg="tf" type="static_transform_publisher" name="odom_broadcaster" output="screen" 
         args="333308.328258 6582795.090358 0 0 0 0 map odom 100"/>
 
-    <!-- Motion Capture System -->utm
+    <!-- Motion Capture System -->
     <group if="$(eval location == 'sml')">
         <arg name="mocap_address" value="10.0.0.10"/>
         <arg name="mocap_name"    value="$(arg name)"/>
