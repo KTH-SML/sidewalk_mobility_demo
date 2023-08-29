@@ -98,6 +98,9 @@ class LTMS(object):
 
         self.verify_state = rospy.Service('ltms/verify_state', VerifyState, self.verify_state_srv)
         
+        from visualization_msgs.msg import Marker
+        rospy.Subscriber('sensor/markers', Marker)
+        self.state_pose_pub = rospy.Publisher('svea2/pose', PoseStamped, queue_size=1)
         self.state_pub = rospy.Publisher('state_in_map', VehicleStateMsg, queue_size=1)
         self.buffer = tf2_ros.Buffer(rospy.Duration(10))
         self.listener = tf2_ros.TransformListener(self.buffer)
@@ -121,11 +124,13 @@ class LTMS(object):
         state_pose = state_to_pose(state)
         trans = self.buffer.lookup_transform("sensor_map", state.header.frame_id, rospy.Time.now(), rospy.Duration(0.5))
         pose = tf2_geometry_msgs.do_transform_pose(state_pose, trans)
+        self.state_pose_pub.publish(pose)
         new_state = pose_to_state(pose)
         new_state.v = state.v
 
         self.state_pub.publish(new_state)
 
+        print(new_state)
 
         return VerifyStateResponse(True)
 
