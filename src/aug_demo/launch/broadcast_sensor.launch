@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="tf" type="static_transform_publisher" name="sensor_map_broadcaster" output="screen" 
+        args="333308.328258 6582795.090358 0 0 0 0 utm sensor_map 100"/>
+</launch>

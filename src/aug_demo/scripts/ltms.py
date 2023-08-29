@@ -7,6 +7,7 @@ import rospy
 from aug_demo.srv import VerifyState, VerifyStateResponse
 from rsu_msgs.msg import StampedObjectPoseArray
 from svea_msgs.msg import VehicleState as VehicleStateMsg
+from nav_msgs.msg import Path
 
 from geometry_msgs.msg import PoseStamped
 
@@ -43,6 +44,20 @@ def pose_to_state(pose):
     state.yaw = yaw
     return state
 
+def load_param(name, value=None):
+    """Function used to get parameters from ROS parameter server
+
+    :param name: name of the parameter
+    :type name: string
+    :param value: default value of the parameter, defaults to None
+    :type value: _type_, optional
+    :return: value of the parameter
+    :rtype: _type_
+    """
+    if value is None:
+        assert rospy.has_param(name), f'Missing parameter "{name}"'
+    return rospy.get_param(name, value)
+
 class LTMS(object):
 
     PADDING = 0.6
@@ -51,6 +66,8 @@ class LTMS(object):
         """Init method for SocialNavigation class."""
 
         rospy.init_node('ltms')
+
+        self.LOCATION = load_param('~location', 'kip')
 
         grid = Grid('X Y YAW VEL'.split(),
                     [+2.0, +2.0, +pi, +0.8],
@@ -79,6 +96,9 @@ class LTMS(object):
         
         self.peds = []
         self.peds_sub = rospy.Subscriber('sensor/objects', StampedObjectPoseArray, self.peds_cb)
+
+        self.path = Path()
+        self.path_sub = rospy.Subscriber('svea2/remote/path', Path, lambda msg: setattr(self, 'path', msg))
 
         self.verify_state = rospy.Service('ltms/verify_state', VerifyState, self.verify_state_srv)
         
@@ -112,6 +132,11 @@ class LTMS(object):
 
 
         return VerifyStateResponse(True)
+
+        if self.LOCATION == 'kip':
+            pass # transform state to sensor map
+
+        print(self.path)
 
         peds = []
         for ped_header, x, y in self.peds:

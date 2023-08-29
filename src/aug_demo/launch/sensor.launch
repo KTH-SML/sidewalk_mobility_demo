@@ -24,12 +24,13 @@
     <arg name="map" value="sml"/>
     <node if="$(eval location == 'sml')" name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/$(arg map).yaml" output="screen"/>
 
-    
-    <node if="$(eval location == 'kip')" pkg="tf" type="static_transform_publisher" name="map_broadcaster" output="screen" 
-        args="0 0 0 0 0 0 map odom 100"/>
-    
+    <include if="$(eval location =='kip')" file="$(find aug_demo)/launch/broadcast_sensor.launch"/>
+
+    <node pkg="tf" type="static_transform_publisher" name="map_broadcaster" output="screen" 
+        args="0 0 0 0 0 0 sensor map 100"/>
+
     <node if="$(eval location == 'kip')" pkg="tf" type="static_transform_publisher" name="odom_broadcaster" output="screen" 
-        args="333308.328258 6582795.090358 0 0 0 0 utm map 100"/>
+        args="0 0 0 0 0 0 map odom 100"/>
     
     <!-- Motion Capture System -->
     <group if="$(eval location == 'sml')">
@@ -60,8 +61,8 @@
     <include file="$(find svea_vision)/launch/zed_main.launch">
         <arg name="enable_bbox_image"   value="true"/>
         <arg name="aruco_size"          value="0.365"/>
-        <arg name="frame_id"            value="mocap" if="$(eval location == 'sml')"/>
-        <arg name="frame_id"            value="utm" if="$(eval location == 'kip')"/>
+        <arg name="frame_id"            value="mocap"       if="$(eval location == 'sml')"/>
+        <arg name="frame_id"            value="sensor_map"  if="$(eval location == 'kip')"/>
     </include>
 
 </launch>

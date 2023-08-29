@@ -42,7 +42,7 @@ class Solver:
     def build(self, debug=False):
 
         if self._program is not None:
-            return self._program
+            return hcl.build(self._program)
 
         vf = hcl.placeholder(self.grid.shape, name="vf", dtype=self.dtype)
         t = hcl.placeholder((2,), name="t", dtype=self.dtype)
@@ -70,8 +70,9 @@ class Solver:
             self._sched[stage_dissipation].parallel(stage_dissipation.axis[0])
 
         # Return executable
-        self._program = hcl.build(self._sched)
-        return self._program
+        # self._program = hcl.build(self._sched)
+        self._program = self._sched
+        return hcl.build(self._program)
     
     def entrypoint_debug(self, hh, vf, t, *xs):
         self.initialize_program()
