@@ -117,6 +117,9 @@ class LTMS(object):
         return self.solver(target=target, target_mode='min')
 
     def verify_state_srv(self, req):
+        if self.LOCATION == 'sml':
+            map_state = req.state
+
         # utm_state is either in utm frame or mocap frame, depending on location
         if self.LOCATION == 'kip':
             utm_state = req.state
