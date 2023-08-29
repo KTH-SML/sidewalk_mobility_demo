@@ -15,7 +15,7 @@
         <remap from="$(arg vehicle_name)/remote/ctrl_request" to="lli/ctrl_request"/>
         <remap from="$(arg vehicle_name)/remote/path" to="path"/>
         <rosparam subst_value="true">
-            host: sml-wan.asuscomm.com
+            host: 130.237.50.52
             subscribers:
               - $(arg vehicle_name)/state
             publishers:
