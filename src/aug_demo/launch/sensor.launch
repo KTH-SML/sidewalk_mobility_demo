@@ -24,13 +24,13 @@
     <arg name="map" value="sml"/>
     <node if="$(eval location == 'sml')" name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/$(arg map).yaml" output="screen"/>
 
-
+    
     <node if="$(eval location == 'kip')" pkg="tf" type="static_transform_publisher" name="map_broadcaster" output="screen" 
-        args="0 0 0 0 0 0 utm map 100"/>
-
+        args="0 0 0 0 0 0 map odom 100"/>
+    
     <node if="$(eval location == 'kip')" pkg="tf" type="static_transform_publisher" name="odom_broadcaster" output="screen" 
-        args="333308.328258 6582795.090358 0 0 0 0 map odom 100"/>
-
+        args="333308.328258 6582795.090358 0 0 0 0 utm map 100"/>
+    
     <!-- Motion Capture System -->
     <group if="$(eval location == 'sml')">
         <arg name="mocap_address" value="10.0.0.10"/>
