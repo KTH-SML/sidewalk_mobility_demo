@@ -18,6 +18,7 @@
             host: 130.237.50.52
             subscribers:
               - $(arg vehicle_name)/state
+              - sensor/markers
             publishers:
               - $(arg vehicle_name)/remote/ctrl_request
         </rosparam>

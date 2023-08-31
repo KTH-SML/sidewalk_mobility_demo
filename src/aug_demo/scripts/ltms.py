@@ -131,7 +131,11 @@ class LTMS(object):
 
             map_state.x += self.DEMO_AREA_CENTER[0]
             map_state.y += self.DEMO_AREA_CENTER[1]
-        
+
+
+            map_state.x += -0.16803447571899888 -  -1.7746380530297756
+            map_state.y += +0.7996012858407618 - 1.850046221166849
+            
         # return VerifyStateResponse(True)
 
         peds = []
@@ -154,7 +158,9 @@ class LTMS(object):
                                upper_half_space(self.grid, 1, y - self.PADDING))
             peds.append(ped)
             
-            # print('ped distance:', np.hypot(x - map_state.x, y - map_state.y))
+            print('ped distance:', np.hypot(x - map_state.x, y - map_state.y),
+                  'ped:', (x, y), 
+                  'svea:', (map_state.x, map_state.y))
 
         target = union(*peds) if peds else np.ones(self.grid.shape)
 

@@ -72,6 +72,9 @@ class remote_driving(object):
         self._path_topic = load_param('~path_topic', 'path')
         self._path_pub = rospy.Publisher(self._path_topic, Path, latch=True, queue_size=1)
 
+        from visualization_msgs.msg import Marker
+        rospy.Subscriber('sensor/markers', Marker)
+
         # Start localization interface based on which localization method is being used
         self.localizer = LocalizationInterface(self.VEHICLE_NAME).start()
         self.state = self.localizer.state
