@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+
+<launch>
+
+    <!-- Options -->
+    <arg name="model_name"          default="FastSAM-x.pt"/>
+    <arg name="use_cuda"            default="true"/>
+    <arg name="conf"                default="0.4"/>
+    <arg name="iou"                 default="0.9"/>
+    <arg name="image_width"         default="640"/>
+    <arg name="image_height"        default="480"/>
+
+    <!-- Consumed topics -->
+    <arg name="rgb_topic"           default="image"/>
+    <arg name="depth_topic"         default="depth"/>
+    <arg name="pointcloud_topic"    default="pointcloud"/>
+
+    <!-- Produced topics -->
+    <arg name="sidewalk_mask_topic" default="sidewalk_mask"/>
+    <arg name="sidewalk_ann_topic"  default="sidewalk_ann"/>
+
+    <!-- Nodes -->
+    <node name="sidewalk_segmentation" pkg="svea_vision" type="sidewalk_segmentation.py" output="screen">
+        <!-- Options -->
+        <param name="model_name"          value="$(arg model_name)" />
+        <param name="use_cuda"            value="$(arg use_cuda)" />
+        <param name="conf"                value="$(arg conf)" />
+        <param name="iou"                 value="$(arg iou)" />
+        <param name="image_width"         value="$(arg image_width)" />
+        <param name="image_height"        value="$(arg image_height)" />
+        <!-- Topics -->
+        <param name="rgb_topic"           value="$(arg rgb_topic)" />
+        <param name="depth_topic"         value="$(arg depth_topic)" />
+        <param name="pointcloud_topic"    value="$(arg pointcloud_topic)" />
+        <param name="sidewalk_mask_topic" value="$(arg sidewalk_mask_topic)" />
+        <param name="sidewalk_ann_topic"  value="$(arg sidewalk_ann_topic)" />
+    </node>
+
+</launch>

@@ -45,4 +45,15 @@
         <arg name="aruco_size"  value="$(arg aruco_size)"/>
     </include>
 
+    <include file="$(find svea_vision)/launch/sidewalk_segmentation.launch">
+        <!-- Options -->
+        <arg name="use_cuda"            value="$(arg use_cuda)"/>
+        <!-- Consumed topics -->
+        <arg name="rgb_topic"           value="$(arg image)"/>
+        <arg name="depth_topic"         value="$(arg depth_image)"/>
+        <!-- Produced topics -->
+        <arg name="sidewalk_mask_topic"       value="sidewalk_mask"/>
+        <arg name="sidewalk_ann_topic"        value="sidewalk_ann"/>
+    </include>
+
 </launch>
