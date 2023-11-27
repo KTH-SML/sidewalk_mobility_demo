@@ -7,8 +7,7 @@
     <arg name="use_cuda"            default="true"/>
     <arg name="conf"                default="0.4"/>
     <arg name="iou"                 default="0.9"/>
-    <arg name="image_width"         default="640"/>
-    <arg name="image_height"        default="480"/>
+    <arg name="prompt_type"         default="points"/>
 
     <!-- Consumed topics -->
     <arg name="rgb_topic"           default="image"/>
@@ -26,8 +25,7 @@
         <param name="use_cuda"            value="$(arg use_cuda)" />
         <param name="conf"                value="$(arg conf)" />
         <param name="iou"                 value="$(arg iou)" />
-        <param name="image_width"         value="$(arg image_width)" />
-        <param name="image_height"        value="$(arg image_height)" />
+        <param name="prompt_type"         value="$(arg prompt_type)" />
         <!-- Topics -->
         <param name="rgb_topic"           value="$(arg rgb_topic)" />
         <param name="depth_topic"         value="$(arg depth_topic)" />

@@ -6,6 +6,7 @@
     <arg name="enable_bbox_image"   default="false"/>
     <arg name="enable_aruco"        default="false"/>
     <arg name="frame_id"            default="map"/>
+    <arg name="prompt_type"         default="points"/>
 
     <!-- Auxiliary -->
     <arg name="only_objects"        default=""/>
@@ -47,13 +48,14 @@
 
     <include file="$(find svea_vision)/launch/sidewalk_segmentation.launch">
         <!-- Options -->
-        <arg name="use_cuda"            value="$(arg use_cuda)"/>
+        <arg name="use_cuda"                value="$(arg use_cuda)"/>
+        <arg name="prompt_type"             value="$(arg prompt_type)"/>
         <!-- Consumed topics -->
-        <arg name="rgb_topic"           value="$(arg image)"/>
-        <arg name="depth_topic"         value="$(arg depth_image)"/>
+        <arg name="rgb_topic"               value="$(arg image)"/>
+        <arg name="depth_topic"             value="$(arg depth_image)"/>
         <!-- Produced topics -->
-        <arg name="sidewalk_mask_topic"       value="sidewalk_mask"/>
-        <arg name="sidewalk_ann_topic"        value="sidewalk_ann"/>
+        <arg name="sidewalk_mask_topic"     value="sidewalk_mask"/>
+        <arg name="sidewalk_ann_topic"      value="sidewalk_ann"/>
     </include>
 
 </launch>

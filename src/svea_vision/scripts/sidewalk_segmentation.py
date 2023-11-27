@@ -1,11 +1,11 @@
 #! /usr/bin/env python3
 
-import os
 import rospy
 import rospkg
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CameraInfo
 
+import os
 import cv2
 import numpy as np
 
@@ -45,13 +45,11 @@ class SidewalkSegementation:
             self.sidewalk_mask_topic = load_param('~sidewalk_mask_topic', 'sidewalk_mask')
             self.sidewalk_ann_topic = load_param('~sidewalk_ann_topic', 'sidewalk_ann')
             
-            self.image_width = load_param('~image_width', 640)
-            self.image_height = load_param('~image_height', 480)
-            
             self.model_name = load_param('~model_name', 'FastSAM-x.pt') # FastSAM-s.pt or FastSAM-x.pt
             self.use_cuda = load_param('~use_cuda', False)
             self.conf = load_param('~conf', 0.4)
             self.iou = load_param('~iou', 0.9)
+            self.prompt_type = load_param('~prompt_type', 'points') # points or text
             
             # Get package path
             rospack = rospkg.RosPack()
@@ -71,19 +69,21 @@ class SidewalkSegementation:
             self.cv_bridge = CvBridge()
             
             # Publishers
-            self.sidewalk_mask_pub = rospy.Publisher(self.sidewalk_mask_topic, Image, queue_size=10)
-            self.sidewalk_ann_pub = rospy.Publisher(self.sidewalk_ann_topic, Image, queue_size=10)
+            self.sidewalk_mask_pub = rospy.Publisher(self.sidewalk_mask_topic, Image, queue_size=1)
+            self.sidewalk_ann_pub = rospy.Publisher(self.sidewalk_ann_topic, Image, queue_size=1)
             
             # Subscribers
-            rospy.Subscriber(self.rgb_topic, Image, self.rgb_callback, queue_size=10)
+            rospy.Subscriber(self.rgb_topic, Image, self.rgb_callback, queue_size=1)
             # rospy.Subscriber(self.depth_topic, Image, self.depth_callback)
             # rospy.Subscriber(self.pointcloud_topic, Image, self.pointcloud_callback)
             # rospy.Subscriber(self.camera_info_topic, CameraInfo, self.camera_info_callback)
         
         except Exception as e:
+            # Log error
             rospy.logerr(e)
 
         else:
+            # Log status
             rospy.loginfo('{} node initialized with model: {}'.format(rospy.get_name(), self.model_name))
             
     def run(self):
@@ -92,20 +92,25 @@ class SidewalkSegementation:
         except rospy.ROSInterruptException:
             rospy.loginfo('Shutting down {}'.format(rospy.get_name()))
 
-    def rgb_callback(self, msg):
+    def rgb_callback(self, img_msg):
         # Convert ROS image to OpenCV image
-        image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding='rgb8')
+        image = self.cv_bridge.imgmsg_to_cv2(img_msg, desired_encoding='rgb8')
         
         # Run inference on the image
-        everything_results = self.model(image, device=self.device, imgsz=self.image_width,
+        everything_results = self.model(image, device=self.device, imgsz=img_msg.width,
                                         conf=self.conf, iou=self.iou, retina_masks=True, verbose=False)
-        
+
         # Prepare a Prompt Process object
         prompt_process = FastSAMPrompt(image, everything_results, device=self.device)
         
         # Text prompt
-        sidewalk_results = prompt_process.text_prompt(text='a sidewalk or footpath or walkway or paved path for humans to walk on')
-        
+        if self.prompt_type == 'points':
+            sidewalk_results = prompt_process.point_prompt(points=[[int(img_msg.width/2), int(img_msg.height*0.98)]], pointlabel=[1])
+        elif self.prompt_type == 'text':
+            sidewalk_results = prompt_process.text_prompt(text='a sidewalk or footpath or walkway or paved path for humans to walk on')
+        else:
+            rospy.logerr("Invalid value for prompt_type parameter")
+
         # Get mask
         sidewalk_mask = sidewalk_results[0].cpu().numpy().masks.data[0].astype('uint8')*255
         
@@ -120,7 +125,7 @@ class SidewalkSegementation:
         # Publish mask and annotated image
         self.sidewalk_mask_pub.publish(mask_msg)
         self.sidewalk_ann_pub.publish(ann_msg)
-        
+
     
 if __name__ == '__main__':
     node = SidewalkSegementation()
