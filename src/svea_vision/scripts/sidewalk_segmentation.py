@@ -83,7 +83,7 @@ class SidewalkSegementation:
             self.sidewalk_ann_pub = rospy.Publisher(self.sidewalk_ann_topic, Image, queue_size=1)
             
             # Subscribers
-            rospy.Subscriber(self.rgb_topic, Image, self.rgb_callback, queue_size=1)
+            rospy.Subscriber(self.rgb_topic, Image, self.rgb_callback, queue_size=1, buff_size=2**24)
             # rospy.Subscriber(self.depth_topic, Image, self.depth_callback)
             # rospy.Subscriber(self.pointcloud_topic, Image, self.pointcloud_callback)
             # rospy.Subscriber(self.camera_info_topic, CameraInfo, self.camera_info_callback)
