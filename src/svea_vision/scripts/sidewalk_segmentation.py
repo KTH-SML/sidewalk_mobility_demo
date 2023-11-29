@@ -35,7 +35,7 @@ class SidewalkSegementation:
             # Initialize node
             rospy.init_node('sidewalk_segmentation')
             
-            # Parameters
+            # Topic Parameters
             self.rgb_topic = load_param('~rgb_topic', 'image')
             self.camera_info_topic = replace_base(self.rgb_topic, 'camera_info')
             
@@ -45,11 +45,17 @@ class SidewalkSegementation:
             self.sidewalk_mask_topic = load_param('~sidewalk_mask_topic', 'sidewalk_mask')
             self.sidewalk_ann_topic = load_param('~sidewalk_ann_topic', 'sidewalk_ann')
             
+            # Model parameters
             self.model_name = load_param('~model_name', 'FastSAM-x.pt') # FastSAM-s.pt or FastSAM-x.pt
             self.use_cuda = load_param('~use_cuda', False)
             self.conf = load_param('~conf', 0.4)
             self.iou = load_param('~iou', 0.9)
-            self.prompt_type = load_param('~prompt_type', 'points') # points or text
+            
+            # Prompt parameters
+            self.prompt_type = load_param('~prompt_type', 'bbox') # bbox or points or text
+            self.prompt_bbox = load_param('~bbox_prompt_corners', [0.35, 0.50, 0.65, 0.98]) # [x1, y1, x2, y2] in relative coordinates
+            self.prompt_points = load_param('~points_prompt_points', [[0.50, 0.98]]) # [[x1, y1], [x2, y2], ...] in relative coordinates
+            self.prompt_text = load_param('~text_prompt_text', 'a sidewalk or footpath or walkway or paved path for humans to walk on')
             
             # Get package path
             rospack = rospkg.RosPack()
@@ -103,11 +109,17 @@ class SidewalkSegementation:
         # Prepare a Prompt Process object
         prompt_process = FastSAMPrompt(image, everything_results, device=self.device)
         
-        # Text prompt
-        if self.prompt_type == 'points':
-            sidewalk_results = prompt_process.point_prompt(points=[[int(img_msg.width/2), int(img_msg.height*0.98)]], pointlabel=[1])
+        # Prompt the model
+        if self.prompt_type == 'bbox':
+            # Convert bbox from relative to absolute
+            bbox = [int(scale*dim) for scale, dim in zip(self.prompt_bbox, 2*[img_msg.width, img_msg.height])]
+            sidewalk_results = prompt_process.box_prompt(bbox)
+        elif self.prompt_type == 'points':
+            # Convert points from relative to absolute
+            points=[[int(scale*dim) for scale, dim in zip(point, [img_msg.width, img_msg.height])] for point in self.prompt_points]
+            sidewalk_results = prompt_process.point_prompt(points)
         elif self.prompt_type == 'text':
-            sidewalk_results = prompt_process.text_prompt(text='a sidewalk or footpath or walkway or paved path for humans to walk on')
+            sidewalk_results = prompt_process.text_prompt(text=self.prompt_text)
         else:
             rospy.logerr("Invalid value for prompt_type parameter")
 

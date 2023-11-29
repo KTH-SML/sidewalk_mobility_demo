@@ -6,7 +6,7 @@
     <arg name="enable_bbox_image"   default="false"/>
     <arg name="enable_aruco"        default="false"/>
     <arg name="frame_id"            default="map"/>
-    <arg name="prompt_type"         default="points"/>
+    <arg name="prompt_type"         default="bbox"/>
 
     <!-- Auxiliary -->
     <arg name="only_objects"        default=""/>
