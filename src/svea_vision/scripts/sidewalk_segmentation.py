@@ -59,6 +59,7 @@ class SidewalkSegementation:
             self.prompt_text = load_param('~text_prompt_text', 'a sidewalk or footpath or walkway or paved path for humans to walk on')
             
             # Other parameters
+            self.publish_ann = load_param('~publish_ann', False)
             self.verbose = load_param('~verbose', False)
             
             # Get package path
@@ -80,7 +81,8 @@ class SidewalkSegementation:
             
             # Publishers
             self.sidewalk_mask_pub = rospy.Publisher(self.sidewalk_mask_topic, Image, queue_size=1)
-            self.sidewalk_ann_pub = rospy.Publisher(self.sidewalk_ann_topic, Image, queue_size=1)
+            if self.publish_ann:
+                self.sidewalk_ann_pub = rospy.Publisher(self.sidewalk_ann_topic, Image, queue_size=1)
             
             # Subscribers
             rospy.Subscriber(self.rgb_topic, Image, self.rgb_callback, queue_size=1, buff_size=2**24)
@@ -116,7 +118,7 @@ class SidewalkSegementation:
         # Prepare a Prompt Process object
         prompt_process = FastSAMPrompt(image, everything_results, device=self.device)
         
-        # Prompt the model
+        # Prompt the results
         if self.prompt_type == 'bbox':
             # Convert bbox from relative to absolute
             bbox = [int(scale*dim) for scale, dim in zip(self.prompt_bbox, 2*[img_msg.width, img_msg.height])]
@@ -131,34 +133,28 @@ class SidewalkSegementation:
             rospy.logerr("Invalid value for prompt_type parameter")
         
         prompt_time = time.time()
-
-        # Get annotated image
-        sidewalk_ann = sidewalk_results[0].plot(masks=True, conf=False, kpt_line=False,
-                                                labels=False, boxes=False, probs=False)
-        if self.prompt_type=='bbox':
-            cv2.rectangle(sidewalk_ann, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,255,0), 2)
         
-        # Get mask
+        # Get mask and publish
         sidewalk_mask = sidewalk_results[0].cpu().numpy().masks.data[0].astype('uint8')*255
-            
-        plot_time = time.time()
-        
-        # Convert OpenCV image to ROS image
         mask_msg = self.cv_bridge.cv2_to_imgmsg(sidewalk_mask, encoding='mono8')
-        ann_msg = self.cv_bridge.cv2_to_imgmsg(sidewalk_ann, encoding='rgb8')
-        
-        # Publish mask and annotated image
         self.sidewalk_mask_pub.publish(mask_msg)
-        self.sidewalk_ann_pub.publish(ann_msg)
+        
+        # Get annotated image and publish 
+        if self.publish_ann:
+            sidewalk_ann = sidewalk_results[0].plot(masks=True, conf=False, kpt_line=False,
+                                                    labels=False, boxes=False, probs=False)
+            if self.prompt_type=='bbox':
+                cv2.rectangle(sidewalk_ann, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,255,0), 2)        
+            ann_msg = self.cv_bridge.cv2_to_imgmsg(sidewalk_ann, encoding='rgb8')
+            self.sidewalk_ann_pub.publish(ann_msg)
         
         publish_time = time.time()
         
         # Log times
         if self.verbose:
-            rospy.loginfo('{:.3f}s total, {:.3f}s inference, {:.3f}s prompt, {:.3f}s plot, {:.3f}s publish'.format(
-                publish_time-start_time, inference_time-start_time, prompt_time-inference_time,
-                plot_time-prompt_time, publish_time-plot_time))
-
+            rospy.loginfo('{:.3f}s total, {:.3f}s inference, {:.3f}s prompt, {:.3f}s publish'.format(
+                publish_time-start_time, inference_time-start_time, prompt_time-inference_time, publish_time-prompt_time))
+    
     
 if __name__ == '__main__':
     node = SidewalkSegementation()

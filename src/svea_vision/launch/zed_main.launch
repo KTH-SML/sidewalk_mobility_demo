@@ -7,6 +7,7 @@
     <arg name="enable_aruco"        default="false"/>
     <arg name="frame_id"            default="map"/>
     <arg name="prompt_type"         default="bbox"/>
+    <arg name="publish_ann"         default="true"/>
     <arg name="verbose"             default="false"/>
 
     <!-- Auxiliary -->
@@ -51,6 +52,7 @@
         <!-- Options -->
         <arg name="use_cuda"                value="$(arg use_cuda)"/>
         <arg name="prompt_type"             value="$(arg prompt_type)"/>
+        <arg name="publish_ann"             value="$(arg publish_ann)"/>
         <arg name="verbose"                 value="$(arg verbose)"/>
         <!-- Consumed topics -->
         <arg name="rgb_topic"               value="$(arg image)"/>

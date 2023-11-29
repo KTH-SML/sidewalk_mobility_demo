@@ -8,6 +8,7 @@
     <arg name="conf"                default="0.4"/>
     <arg name="iou"                 default="0.9"/>
     <arg name="prompt_type"         default="bbox"/>
+    <arg name="publish_ann"         default="false"/>
     <arg name="verbose"             default="false"/>
 
     <!-- Consumed topics -->
@@ -27,6 +28,7 @@
         <param name="conf"                value="$(arg conf)" />
         <param name="iou"                 value="$(arg iou)" />
         <param name="prompt_type"         value="$(arg prompt_type)" />
+        <param name="publish_ann"         value="$(arg publish_ann)" />
         <param name="verbose"             value="$(arg verbose)" />
         <!-- Topics -->
         <param name="rgb_topic"           value="$(arg rgb_topic)" />
