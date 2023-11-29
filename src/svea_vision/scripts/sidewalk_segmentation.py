@@ -53,8 +53,8 @@ class SidewalkSegementation:
             
             # Prompt parameters
             self.prompt_type = load_param('~prompt_type', 'bbox') # bbox or points or text
-            self.prompt_bbox = load_param('~bbox_prompt_corners', [0.35, 0.50, 0.65, 0.98]) # [x1, y1, x2, y2] in relative coordinates
-            self.prompt_points = load_param('~points_prompt_points', [[0.50, 0.98]]) # [[x1, y1], [x2, y2], ...] in relative coordinates
+            self.prompt_bbox = load_param('~bbox_prompt_corners', [0.35, 0.50, 0.65, 0.95]) # [x1, y1, x2, y2] in relative coordinates
+            self.prompt_points = load_param('~points_prompt_points', [[0.50, 0.95]]) # [[x1, y1], [x2, y2], ...] in relative coordinates
             self.prompt_text = load_param('~text_prompt_text', 'a sidewalk or footpath or walkway or paved path for humans to walk on')
             
             # Get package path
@@ -117,7 +117,7 @@ class SidewalkSegementation:
         elif self.prompt_type == 'points':
             # Convert points from relative to absolute
             points=[[int(scale*dim) for scale, dim in zip(point, [img_msg.width, img_msg.height])] for point in self.prompt_points]
-            sidewalk_results = prompt_process.point_prompt(points)
+            sidewalk_results = prompt_process.point_prompt(points, pointlabel=[1])
         elif self.prompt_type == 'text':
             sidewalk_results = prompt_process.text_prompt(text=self.prompt_text)
         else:
@@ -129,6 +129,8 @@ class SidewalkSegementation:
         # Get annotated image
         sidewalk_ann = sidewalk_results[0].plot(masks=True, conf=False, kpt_line=False,
                                                 labels=False, boxes=False, probs=False)
+        if self.prompt_type=='bbox':
+            cv2.rectangle(sidewalk_ann, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,255,0), 2)
         
         # Convert OpenCV image to ROS image
         mask_msg = self.cv_bridge.cv2_to_imgmsg(sidewalk_mask, encoding='mono8')

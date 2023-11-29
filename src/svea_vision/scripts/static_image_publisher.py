@@ -18,7 +18,7 @@ class PublishImage:
     def __init__(self):
         try:
             # Initialize node
-            rospy.init_node('publish_image', anonymous=True)
+            rospy.init_node('static_image_publisher', anonymous=True)
             
             # Parameters
             self.image_topic = load_param('~image_topic', 'static_image')
