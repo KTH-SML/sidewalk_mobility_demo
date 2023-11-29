@@ -7,6 +7,7 @@
     <arg name="enable_aruco"        default="false"/>
     <arg name="frame_id"            default="map"/>
     <arg name="prompt_type"         default="bbox"/>
+    <arg name="verbose"             default="false"/>
 
     <!-- Auxiliary -->
     <arg name="only_objects"        default=""/>
@@ -50,6 +51,7 @@
         <!-- Options -->
         <arg name="use_cuda"                value="$(arg use_cuda)"/>
         <arg name="prompt_type"             value="$(arg prompt_type)"/>
+        <arg name="verbose"                 value="$(arg verbose)"/>
         <!-- Consumed topics -->
         <arg name="rgb_topic"               value="$(arg image)"/>
         <arg name="depth_topic"             value="$(arg depth_image)"/>

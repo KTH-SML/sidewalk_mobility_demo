@@ -6,6 +6,7 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CameraInfo
 
 import os
+import time
 import cv2
 import numpy as np
 
@@ -37,10 +38,10 @@ class SidewalkSegementation:
             
             # Topic Parameters
             self.rgb_topic = load_param('~rgb_topic', 'image')
-            self.camera_info_topic = replace_base(self.rgb_topic, 'camera_info')
+            # self.camera_info_topic = replace_base(self.rgb_topic, 'camera_info')
             
-            self.depth_topic = load_param('~depth_topic', 'depth')
-            self.pointcloud_topic = load_param('~pointcloud_topic', 'pointcloud')
+            # self.depth_topic = load_param('~depth_topic', 'depth')
+            # self.pointcloud_topic = load_param('~pointcloud_topic', 'pointcloud')
             
             self.sidewalk_mask_topic = load_param('~sidewalk_mask_topic', 'sidewalk_mask')
             self.sidewalk_ann_topic = load_param('~sidewalk_ann_topic', 'sidewalk_ann')
@@ -56,6 +57,9 @@ class SidewalkSegementation:
             self.prompt_bbox = load_param('~bbox_prompt_corners', [0.35, 0.50, 0.65, 0.95]) # [x1, y1, x2, y2] in relative coordinates
             self.prompt_points = load_param('~points_prompt_points', [[0.50, 0.95]]) # [[x1, y1], [x2, y2], ...] in relative coordinates
             self.prompt_text = load_param('~text_prompt_text', 'a sidewalk or footpath or walkway or paved path for humans to walk on')
+            
+            # Other parameters
+            self.verbose = load_param('~verbose', False)
             
             # Get package path
             rospack = rospkg.RosPack()
@@ -99,13 +103,16 @@ class SidewalkSegementation:
             rospy.loginfo('Shutting down {}'.format(rospy.get_name()))
 
     def rgb_callback(self, img_msg):
+        start_time = time.time()
+        
         # Convert ROS image to OpenCV image
         image = self.cv_bridge.imgmsg_to_cv2(img_msg, desired_encoding='rgb8')
         
         # Run inference on the image
         everything_results = self.model(image, device=self.device, imgsz=img_msg.width,
-                                        conf=self.conf, iou=self.iou, retina_masks=True, verbose=False)
-
+                                        conf=self.conf, iou=self.iou, retina_masks=True, verbose=self.verbose)
+        inference_time = time.time()
+        
         # Prepare a Prompt Process object
         prompt_process = FastSAMPrompt(image, everything_results, device=self.device)
         
@@ -122,15 +129,19 @@ class SidewalkSegementation:
             sidewalk_results = prompt_process.text_prompt(text=self.prompt_text)
         else:
             rospy.logerr("Invalid value for prompt_type parameter")
-
-        # Get mask
-        sidewalk_mask = sidewalk_results[0].cpu().numpy().masks.data[0].astype('uint8')*255
         
+        prompt_time = time.time()
+
         # Get annotated image
         sidewalk_ann = sidewalk_results[0].plot(masks=True, conf=False, kpt_line=False,
                                                 labels=False, boxes=False, probs=False)
         if self.prompt_type=='bbox':
             cv2.rectangle(sidewalk_ann, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,255,0), 2)
+        
+        # Get mask
+        sidewalk_mask = sidewalk_results[0].cpu().numpy().masks.data[0].astype('uint8')*255
+            
+        plot_time = time.time()
         
         # Convert OpenCV image to ROS image
         mask_msg = self.cv_bridge.cv2_to_imgmsg(sidewalk_mask, encoding='mono8')
@@ -139,6 +150,14 @@ class SidewalkSegementation:
         # Publish mask and annotated image
         self.sidewalk_mask_pub.publish(mask_msg)
         self.sidewalk_ann_pub.publish(ann_msg)
+        
+        publish_time = time.time()
+        
+        # Log times
+        if self.verbose:
+            rospy.loginfo('{:.3f}s total, {:.3f}s inference, {:.3f}s prompt, {:.3f}s plot, {:.3f}s publish'.format(
+                publish_time-start_time, inference_time-start_time, prompt_time-inference_time,
+                plot_time-prompt_time, publish_time-plot_time))
 
     
 if __name__ == '__main__':
