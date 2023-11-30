@@ -17,6 +17,9 @@ from ultralytics import FastSAM
 from ultralytics.models.fastsam import FastSAMPrompt
 from ultralytics.engine.results import Results
 
+np.float = float  # Temporary fix for ros_numpy issue; check #39
+import ros_numpy
+
 
 def load_param(name, value=None):
     if value is None:
@@ -158,20 +161,19 @@ class SidewalkSegementation:
             
     def extract_pointcloud(self, pc_msg, mask) -> PointCloud2:
         # Convert ROS pointcloud to Numpy array
-        pc_data = pc2.read_points(pc_msg, skip_nans=False)
-        pc_data = np.array(list(pc_data))
+        pc_data = ros_numpy.point_cloud2.pointcloud2_to_array(pc_msg)
         
         # Convert mask to boolean and flatten
-        flat_mask = np.array(mask, dtype='bool').flatten()
+        mask = np.array(mask, dtype='bool')
         
         # Extract pointcloud
         extracted_pc = np.full_like(pc_data, np.nan)
-        extracted_pc[flat_mask] = pc_data[flat_mask]
+        extracted_pc[mask] = pc_data[mask]
         
         # Convert back to ROS pointcloud
-        pc_msg = pc2.create_cloud(pc_msg.header, pc_msg.fields, extracted_pc)
+        extracted_pc_msg = ros_numpy.point_cloud2.array_to_pointcloud2(extracted_pc, pc_msg.header.stamp, pc_msg.header.frame_id) 
         
-        return pc_msg
+        return extracted_pc_msg
         
     def callback(self, img_msg, pc_msg) -> None:
         self.log_times['start_time'] = time.time()
