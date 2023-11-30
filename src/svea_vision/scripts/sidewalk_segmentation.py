@@ -148,7 +148,7 @@ class SidewalkSegementation:
         
         # Get annotated image and publish 
         if self.publish_ann:
-            sidewalk_results[0].masks.data = torch.tensor(np.array([sidewalk_mask]))
+            sidewalk_results[0].masks.data = torch.tensor(np.array([sidewalk_mask.astype('bool')]))
             sidewalk_ann = sidewalk_results[0].plot(masks=True, conf=False, kpt_line=False,
                                                     labels=False, boxes=False, probs=False)
             if self.prompt_type=='bbox':
