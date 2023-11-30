@@ -8,6 +8,7 @@ from sensor_msgs.msg import Image, CameraInfo
 import os
 import time
 import cv2
+import torch
 import numpy as np
 
 from ultralytics import FastSAM
@@ -134,13 +135,20 @@ class SidewalkSegementation:
         
         prompt_time = time.time()
         
-        # Get mask and publish
+        # Postprocess the mask
         sidewalk_mask = sidewalk_results[0].cpu().numpy().masks.data[0].astype('uint8')*255
+        contours, _ = cv2.findContours(sidewalk_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        max_contour = max(contours, key=cv2.contourArea)
+        sidewalk_mask = np.zeros_like(sidewalk_mask)
+        cv2.fillPoly(sidewalk_mask, [max_contour], 255)
+        
+        # Publish mask
         mask_msg = self.cv_bridge.cv2_to_imgmsg(sidewalk_mask, encoding='mono8')
         self.sidewalk_mask_pub.publish(mask_msg)
         
         # Get annotated image and publish 
         if self.publish_ann:
+            sidewalk_results[0].masks.data = torch.tensor(np.array([sidewalk_mask]))
             sidewalk_ann = sidewalk_results[0].plot(masks=True, conf=False, kpt_line=False,
                                                     labels=False, boxes=False, probs=False)
             if self.prompt_type=='bbox':
