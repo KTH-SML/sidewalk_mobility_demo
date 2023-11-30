@@ -57,7 +57,7 @@
         <arg name="verbose"                     value="$(arg verbose)"/>
         <!-- Consumed topics -->
         <arg name="rgb_topic"                   value="$(arg image)"/>
-        <arg name="point_cloud_topic"           value="$(arg point_cloud)"/>
+        <arg name="pointcloud_topic"            value="$(arg point_cloud)"/>
         <!-- Produced topics -->
         <arg name="sidewalk_mask_topic"         value="sidewalk_mask"/>
         <arg name="sidewalk_pointcloud_topic"   value="sidewalk_pointcloud"/>
