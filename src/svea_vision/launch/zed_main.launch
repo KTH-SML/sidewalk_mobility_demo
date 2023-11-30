@@ -19,6 +19,7 @@
     <!-- Constants -->
     <arg name="depth_image"     value="/zed/zed_node/depth/depth_registered"/>
     <arg name="image"           value="/zed/zed_node/rgb/image_rect_color"/>
+    <arg name="point_cloud"     value="/zed/zed_node/point_cloud/cloud_registered"/>
 
 
     <!-- Nodes -->
@@ -50,16 +51,17 @@
 
     <include file="$(find svea_vision)/launch/sidewalk_segmentation.launch">
         <!-- Options -->
-        <arg name="use_cuda"                value="$(arg use_cuda)"/>
-        <arg name="prompt_type"             value="$(arg prompt_type)"/>
-        <arg name="publish_ann"             value="$(arg publish_ann)"/>
-        <arg name="verbose"                 value="$(arg verbose)"/>
+        <arg name="use_cuda"                    value="$(arg use_cuda)"/>
+        <arg name="prompt_type"                 value="$(arg prompt_type)"/>
+        <arg name="publish_ann"                 value="$(arg publish_ann)"/>
+        <arg name="verbose"                     value="$(arg verbose)"/>
         <!-- Consumed topics -->
-        <arg name="rgb_topic"               value="$(arg image)"/>
-        <arg name="depth_topic"             value="$(arg depth_image)"/>
+        <arg name="rgb_topic"                   value="$(arg image)"/>
+        <arg name="point_cloud_topic"           value="$(arg point_cloud)"/>
         <!-- Produced topics -->
-        <arg name="sidewalk_mask_topic"     value="sidewalk_mask"/>
-        <arg name="sidewalk_ann_topic"      value="sidewalk_ann"/>
+        <arg name="sidewalk_mask_topic"         value="sidewalk_mask"/>
+        <arg name="sidewalk_pointcloud_topic"   value="sidewalk_pointcloud"/>
+        <arg name="sidewalk_ann_topic"          value="sidewalk_ann"/>
     </include>
 
 </launch>

@@ -2,8 +2,10 @@
 
 import rospy
 import rospkg
+import message_filters as mf
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image, CameraInfo
+from sensor_msgs.msg import Image, PointCloud2
+from sensor_msgs import point_cloud2 as pc2
 
 import os
 import time
@@ -39,12 +41,10 @@ class SidewalkSegementation:
             
             # Topic Parameters
             self.rgb_topic = load_param('~rgb_topic', 'image')
-            # self.camera_info_topic = replace_base(self.rgb_topic, 'camera_info')
-            
-            # self.depth_topic = load_param('~depth_topic', 'depth')
-            # self.pointcloud_topic = load_param('~pointcloud_topic', 'pointcloud')
+            self.pointcloud_topic = load_param('~pointcloud_topic', 'pointcloud')
             
             self.sidewalk_mask_topic = load_param('~sidewalk_mask_topic', 'sidewalk_mask')
+            self.sidewalk_pointcloud_topic = load_param('~sidewalk_pointcloud_topic', 'sidewalk_pointcloud')
             self.sidewalk_ann_topic = load_param('~sidewalk_ann_topic', 'sidewalk_ann')
             
             # Model parameters
@@ -82,15 +82,17 @@ class SidewalkSegementation:
             
             # Publishers
             self.sidewalk_mask_pub = rospy.Publisher(self.sidewalk_mask_topic, Image, queue_size=1)
+            self.sidewalk_pc_pub = rospy.Publisher(self.sidewalk_pointcloud_topic, PointCloud2, queue_size=1)
             if self.publish_ann:
                 self.sidewalk_ann_pub = rospy.Publisher(self.sidewalk_ann_topic, Image, queue_size=1)
             
             # Subscribers
-            rospy.Subscriber(self.rgb_topic, Image, self.rgb_callback, queue_size=1, buff_size=2**24)
-            # rospy.Subscriber(self.depth_topic, Image, self.depth_callback)
-            # rospy.Subscriber(self.pointcloud_topic, Image, self.pointcloud_callback)
-            # rospy.Subscriber(self.camera_info_topic, CameraInfo, self.camera_info_callback)
-        
+            self.ts = mf.TimeSynchronizer([
+                mf.Subscriber(self.rgb_topic, Image),
+                mf.Subscriber(self.pointcloud_topic, PointCloud2),
+            ], queue_size=1)
+            self.ts.registerCallback(self.callback)
+            
         except Exception as e:
             # Log error
             rospy.logerr(e)
@@ -104,8 +106,25 @@ class SidewalkSegementation:
             rospy.spin()
         except rospy.ROSInterruptException:
             rospy.loginfo('Shutting down {}'.format(rospy.get_name()))
-
-    def rgb_callback(self, img_msg):
+            
+    def extract_pointcloud(self, pc_msg, mask):
+        # Convert ROS pointcloud to Numpy array
+        pc_data = pc2.read_points(pc_msg, skip_nans=False)
+        pc_data = np.array(list(pc_data))
+        
+        # Convert mask to boolean and flatten
+        flat_mask = np.array(mask, dtype='bool').flatten()
+        
+        # Extract pointcloud
+        extracted_pc = np.full_like(pc_data, np.nan)
+        extracted_pc[flat_mask] = pc_data[flat_mask]
+        
+        # Convert back to ROS pointcloud
+        pc_msg = pc2.create_cloud(pc_msg.header, pc_msg.fields, extracted_pc)
+        
+        return pc_msg
+        
+    def callback(self, img_msg, pc_msg):
         start_time = time.time()
         
         # Convert ROS image to OpenCV image
@@ -147,10 +166,16 @@ class SidewalkSegementation:
         max_contour = max(contours, key=cv2.contourArea)
         sidewalk_mask = np.zeros_like(sidewalk_mask)
         cv2.fillPoly(sidewalk_mask, [max_contour], 255)
+        
+        # Cut pointcloud
+        sidewalk_pc_msg = self.extract_pointcloud(pc_msg, sidewalk_mask)
 
         # Publish mask
         mask_msg = self.cv_bridge.cv2_to_imgmsg(sidewalk_mask, encoding='mono8')
         self.sidewalk_mask_pub.publish(mask_msg)
+        
+        # Publish pointcloud
+        self.sidewalk_pc_pub.publish(sidewalk_pc_msg)
         
         # Get annotated image and publish 
         if self.publish_ann:

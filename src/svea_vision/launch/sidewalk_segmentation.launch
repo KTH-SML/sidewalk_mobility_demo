@@ -13,29 +13,29 @@
 
     <!-- Consumed topics -->
     <arg name="rgb_topic"           default="image"/>
-    <arg name="depth_topic"         default="depth"/>
     <arg name="pointcloud_topic"    default="pointcloud"/>
 
     <!-- Produced topics -->
-    <arg name="sidewalk_mask_topic" default="sidewalk_mask"/>
-    <arg name="sidewalk_ann_topic"  default="sidewalk_ann"/>
+    <arg name="sidewalk_mask_topic"         default="sidewalk_mask"/>
+    <arg name="sidewalk_pointcloud_topic"   default="sidewalk_pointcloud"/>
+    <arg name="sidewalk_ann_topic"          default="sidewalk_ann"/>
 
     <!-- Nodes -->
     <node name="sidewalk_segmentation" pkg="svea_vision" type="sidewalk_segmentation.py" output="screen">
         <!-- Options -->
-        <param name="model_name"          value="$(arg model_name)" />
-        <param name="use_cuda"            value="$(arg use_cuda)" />
-        <param name="conf"                value="$(arg conf)" />
-        <param name="iou"                 value="$(arg iou)" />
-        <param name="prompt_type"         value="$(arg prompt_type)" />
-        <param name="publish_ann"         value="$(arg publish_ann)" />
-        <param name="verbose"             value="$(arg verbose)" />
+        <param name="model_name"                    value="$(arg model_name)" />
+        <param name="use_cuda"                      value="$(arg use_cuda)" />
+        <param name="conf"                          value="$(arg conf)" />
+        <param name="iou"                           value="$(arg iou)" />
+        <param name="prompt_type"                   value="$(arg prompt_type)" />
+        <param name="publish_ann"                   value="$(arg publish_ann)" />
+        <param name="verbose"                       value="$(arg verbose)" />
         <!-- Topics -->
-        <param name="rgb_topic"           value="$(arg rgb_topic)" />
-        <param name="depth_topic"         value="$(arg depth_topic)" />
-        <param name="pointcloud_topic"    value="$(arg pointcloud_topic)" />
-        <param name="sidewalk_mask_topic" value="$(arg sidewalk_mask_topic)" />
-        <param name="sidewalk_ann_topic"  value="$(arg sidewalk_ann_topic)" />
+        <param name="rgb_topic"                     value="$(arg rgb_topic)" />
+        <param name="pointcloud_topic"              value="$(arg pointcloud_topic)" />
+        <param name="sidewalk_mask_topic"           value="$(arg sidewalk_mask_topic)" />
+        <param name="sidewalk_pointcloud_topic"     value="$(arg sidewalk_pointcloud_topic)" />
+        <param name="sidewalk_ann_topic"            value="$(arg sidewalk_ann_topic)" />
     </node>
 
 </launch>
