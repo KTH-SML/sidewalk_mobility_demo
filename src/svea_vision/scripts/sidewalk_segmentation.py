@@ -135,13 +135,19 @@ class SidewalkSegementation:
         
         prompt_time = time.time()
         
-        # Postprocess the mask
+        # Apply morphological opening to remove small noise
         sidewalk_mask = sidewalk_results[0].cpu().numpy().masks.data[0].astype('uint8')*255
+        erosion_kernel = np.ones((5,5), np.uint8)
+        dilation_kernel = np.ones((3,3), np.uint8)
+        sidewalk_mask = cv2.erode(sidewalk_mask, erosion_kernel, iterations=1)
+        sidewalk_mask = cv2.dilate(sidewalk_mask, dilation_kernel, iterations=1)
+        
+        # Select the largest contour from the mask
         contours, _ = cv2.findContours(sidewalk_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         max_contour = max(contours, key=cv2.contourArea)
         sidewalk_mask = np.zeros_like(sidewalk_mask)
         cv2.fillPoly(sidewalk_mask, [max_contour], 255)
-        
+
         # Publish mask
         mask_msg = self.cv_bridge.cv2_to_imgmsg(sidewalk_mask, encoding='mono8')
         self.sidewalk_mask_pub.publish(mask_msg)
