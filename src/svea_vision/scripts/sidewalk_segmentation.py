@@ -15,6 +15,7 @@ import numpy as np
 
 from ultralytics import FastSAM
 from ultralytics.models.fastsam import FastSAMPrompt
+from ultralytics.engine.results import Results
 
 
 def load_param(name, value=None):
@@ -93,6 +94,9 @@ class SidewalkSegementation:
             ], queue_size=1)
             self.ts.registerCallback(self.callback)
             
+            # Logging dictionary
+            self.log_times = {}
+            
         except Exception as e:
             # Log error
             rospy.logerr(e)
@@ -101,39 +105,20 @@ class SidewalkSegementation:
             # Log status
             rospy.loginfo('{} node initialized with model: {}'.format(rospy.get_name(), self.model_name))
             
-    def run(self):
+    def run(self) -> None:
         try:
             rospy.spin()
         except rospy.ROSInterruptException:
             rospy.loginfo('Shutting down {}'.format(rospy.get_name()))
             
-    def extract_pointcloud(self, pc_msg, mask):
-        # Convert ROS pointcloud to Numpy array
-        pc_data = pc2.read_points(pc_msg, skip_nans=False)
-        pc_data = np.array(list(pc_data))
-        
-        # Convert mask to boolean and flatten
-        flat_mask = np.array(mask, dtype='bool').flatten()
-        
-        # Extract pointcloud
-        extracted_pc = np.full_like(pc_data, np.nan)
-        extracted_pc[flat_mask] = pc_data[flat_mask]
-        
-        # Convert back to ROS pointcloud
-        pc_msg = pc2.create_cloud(pc_msg.header, pc_msg.fields, extracted_pc)
-        
-        return pc_msg
-        
-    def callback(self, img_msg, pc_msg):
-        start_time = time.time()
-        
+    def segment_image(self, img_msg) -> (np.ndarray, Results):
         # Convert ROS image to OpenCV image
         image = self.cv_bridge.imgmsg_to_cv2(img_msg, desired_encoding='rgb8')
         
         # Run inference on the image
         everything_results = self.model(image, device=self.device, imgsz=img_msg.width,
                                         conf=self.conf, iou=self.iou, retina_masks=True, verbose=self.verbose)
-        inference_time = time.time()
+        self.log_times['inference_time'] = time.time()
         
         # Prepare a Prompt Process object
         prompt_process = FastSAMPrompt(image, everything_results, device=self.device)
@@ -151,8 +136,8 @@ class SidewalkSegementation:
             sidewalk_results = prompt_process.text_prompt(text=self.prompt_text)
         else:
             rospy.logerr("Invalid value for prompt_type parameter")
-        
-        prompt_time = time.time()
+            
+        self.log_times['prompt_time'] = time.time()
         
         # Apply morphological opening to remove small noise
         sidewalk_mask = sidewalk_results[0].cpu().numpy().masks.data[0].astype('uint8')*255
@@ -167,8 +152,36 @@ class SidewalkSegementation:
         sidewalk_mask = np.zeros_like(sidewalk_mask)
         cv2.fillPoly(sidewalk_mask, [max_contour], 255)
         
-        # Cut pointcloud
+        self.log_times['postprocess_time'] = time.time()
+                    
+        return sidewalk_mask, sidewalk_results
+            
+    def extract_pointcloud(self, pc_msg, mask) -> PointCloud2:
+        # Convert ROS pointcloud to Numpy array
+        pc_data = pc2.read_points(pc_msg, skip_nans=False)
+        pc_data = np.array(list(pc_data))
+        
+        # Convert mask to boolean and flatten
+        flat_mask = np.array(mask, dtype='bool').flatten()
+        
+        # Extract pointcloud
+        extracted_pc = np.full_like(pc_data, np.nan)
+        extracted_pc[flat_mask] = pc_data[flat_mask]
+        
+        # Convert back to ROS pointcloud
+        pc_msg = pc2.create_cloud(pc_msg.header, pc_msg.fields, extracted_pc)
+        
+        return pc_msg
+        
+    def callback(self, img_msg, pc_msg) -> None:
+        self.log_times['start_time'] = time.time()
+        
+        # Segment image
+        sidewalk_mask, sidewalk_results = self.segment_image(img_msg)
+        
+        # Extract pointcloud
         sidewalk_pc_msg = self.extract_pointcloud(pc_msg, sidewalk_mask)
+        self.log_times['extract_pc_time'] = time.time()
 
         # Publish mask
         mask_msg = self.cv_bridge.cv2_to_imgmsg(sidewalk_mask, encoding='mono8')
@@ -183,16 +196,23 @@ class SidewalkSegementation:
             sidewalk_ann = sidewalk_results[0].plot(masks=True, conf=False, kpt_line=False,
                                                     labels=False, boxes=False, probs=False)
             if self.prompt_type=='bbox':
+                bbox = [int(scale*dim) for scale, dim in zip(self.prompt_bbox, 2*[img_msg.width, img_msg.height])]
                 cv2.rectangle(sidewalk_ann, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0,255,0), 2)        
             ann_msg = self.cv_bridge.cv2_to_imgmsg(sidewalk_ann, encoding='rgb8')
             self.sidewalk_ann_pub.publish(ann_msg)
         
-        publish_time = time.time()
+        self.log_times['publish_time'] = time.time()
         
         # Log times
         if self.verbose:
-            rospy.loginfo('{:.3f}s total, {:.3f}s inference, {:.3f}s prompt, {:.3f}s publish'.format(
-                publish_time-start_time, inference_time-start_time, prompt_time-inference_time, publish_time-prompt_time))
+            rospy.loginfo('{:.3f}s total, {:.3f}s inference, {:.3f}s prompt, {:.3f}s postprocess, {:.3f}s extract_pc, {:.3f}s publish'.format(
+                self.log_times['publish_time'] - self.log_times['start_time'],
+                self.log_times['inference_time'] - self.log_times['start_time'],
+                self.log_times['prompt_time'] - self.log_times['inference_time'],
+                self.log_times['postprocess_time'] - self.log_times['prompt_time'],
+                self.log_times['extract_pc_time'] - self.log_times['postprocess_time'],
+                self.log_times['publish_time'] - self.log_times['extract_pc_time']
+            ))
     
     
 if __name__ == '__main__':
