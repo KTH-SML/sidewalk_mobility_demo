@@ -5,7 +5,6 @@ import rospkg
 import message_filters as mf
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, PointCloud2
-from sensor_msgs import point_cloud2 as pc2
 
 import os
 import time
@@ -17,7 +16,7 @@ from ultralytics import FastSAM
 from ultralytics.models.fastsam import FastSAMPrompt
 from ultralytics.engine.results import Results
 
-np.float = float  # Temporary fix for ros_numpy issue; check #39
+np.float = float  # NOTE: Temporary fix for ros_numpy issue; check #39
 import ros_numpy
 
 
