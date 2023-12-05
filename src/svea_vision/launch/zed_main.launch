@@ -6,6 +6,9 @@
     <arg name="enable_bbox_image"   default="false"/>
     <arg name="enable_aruco"        default="false"/>
     <arg name="frame_id"            default="map"/>
+    <arg name="prompt_type"         default="bbox"/>
+    <arg name="publish_ann"         default="true"/>
+    <arg name="verbose"             default="false"/>
 
     <!-- Auxiliary -->
     <arg name="only_objects"        default=""/>
@@ -16,6 +19,7 @@
     <!-- Constants -->
     <arg name="depth_image"     value="/zed/zed_node/depth/depth_registered"/>
     <arg name="image"           value="/zed/zed_node/rgb/image_rect_color"/>
+    <arg name="point_cloud"     value="/zed/zed_node/point_cloud/cloud_registered"/>
 
 
     <!-- Nodes -->
@@ -43,6 +47,21 @@
         <arg name="image"       value="$(arg image)"/>
         <!-- Auxiliary -->
         <arg name="aruco_size"  value="$(arg aruco_size)"/>
+    </include>
+
+    <include file="$(find svea_vision)/launch/sidewalk_segmentation.launch">
+        <!-- Options -->
+        <arg name="use_cuda"                    value="$(arg use_cuda)"/>
+        <arg name="prompt_type"                 value="$(arg prompt_type)"/>
+        <arg name="publish_ann"                 value="$(arg publish_ann)"/>
+        <arg name="verbose"                     value="$(arg verbose)"/>
+        <!-- Consumed topics -->
+        <arg name="rgb_topic"                   value="$(arg image)"/>
+        <arg name="pointcloud_topic"            value="$(arg point_cloud)"/>
+        <!-- Produced topics -->
+        <arg name="sidewalk_mask_topic"         value="sidewalk_mask"/>
+        <arg name="sidewalk_pointcloud_topic"   value="sidewalk_pointcloud"/>
+        <arg name="sidewalk_ann_topic"          value="sidewalk_ann"/>
     </include>
 
 </launch>

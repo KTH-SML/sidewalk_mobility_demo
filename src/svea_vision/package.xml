@@ -53,6 +53,8 @@
   <depend>svea_core</depend>
   <depend>image_geometry</depend>
   <depend>aruco_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>ros_numpy</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
