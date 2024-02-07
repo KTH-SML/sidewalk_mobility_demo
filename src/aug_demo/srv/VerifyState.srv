@@ -1,3 +1,4 @@
 svea_msgs/VehicleState state
+float32 delta
 ---
 bool ok

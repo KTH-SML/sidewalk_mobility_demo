@@ -15,9 +15,14 @@ import tf2_geometry_msgs
 from tf import transformations 
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
-from odp.shapes import *
-from odp.solver import HJSolver 
-from odp.spect import Grid, SVEA
+#
+# from odp.shapes import *
+# from odp.solver import HJSolver 
+# from odp.spect import Grid, SVEA
+#
+
+import hj_reachability as hj
+import hj_reachability.shapes as shp
 
 def state_to_pose(state):
     pose = PoseStamped()
@@ -70,31 +75,56 @@ class LTMS(object):
 
         self.LOCATION = load_param('~location', 'kip')
 
-        grid = Grid('X Y YAW VEL'.split(),
-                    [+2.0, +2.0, +pi, +0.8],
-                    [-2.0, -2.0, -pi, +0.3],
-                    [31, 31, 13, 7],
-                    [False, False, True, False])
-        self.grid = grid._grid 
+        #
+        # grid = Grid('X Y YAW VEL'.split(),
+        #             [+2.0, +2.0, +pi, +0.8],
+        #             [-2.0, -2.0, -pi, +0.3],
+        #             [31, 31, 13, 7],
+        #             [False, False, True, False])
+        # self.grid = grid._grid 
+        #
+
+        max_bounds = np.array([+2.0, +2.0, +pi, +pi/5, +0.8])
+        min_bounds = np.array([-2.0, -2.0, -pi, -pi/5, +0.3])
+        self.grid = hj.Grid.from_lattice_parameters_and_boundary_conditions(hj.sets.Box(min_bounds, max_bounds),
+                                                               (31, 31, 13, 7, 7),
+                                                               periodic_dims=2)
+
 
         horizon = 2
         t_step = 0.2
         small_number = 1e-5
         self.time_frame = np.arange(start=0, stop=horizon + small_number, step=t_step)
 
-        model_settings = {'uMin': [-pi/5, -0.2],
-                          'uMax': [+pi/5, +0.2],
-                          'dMin': [0.0, 0.0, 0.0, 0.0],
-                          'dMax': [0.0, 0.0, 0.0, 0.0]}
+        #
+        # model_settings = {'uMin': [-pi/5, -0.2],
+        #                   'uMax': [+pi/5, +0.2],
+        #                   'dMin': [0.0, 0.0, 0.0, 0.0],
+        #                   'dMax': [0.0, 0.0, 0.0, 0.0]}
+    
 
-        self.model = SVEA(ctrl_range=[model_settings['uMin'],
-                                      model_settings['uMax']],
-                          dstb_range=[model_settings['dMin'],
-                                      model_settings['dMax']],
-                          mode='reach')
+        # self.model = SVEA(ctrl_range=[model_settings['uMin'],
+        #                               model_settings['uMax']],
+        #                   dstb_range=[model_settings['dMin'],
+        #                               model_settings['dMax']],
+        #                   mode='reach')
+        #
 
-        self.solver = HJSolver(self.grid, self.time_frame, self.model)
-        
+        # 
+        self.avoid_dynamics = hj.systems.SVEA5D(min_steer=-pi/5, 
+                                   max_steer=+pi/5,
+                                   min_accel=-0.2,
+                                   max_accel=+0.2).with_mode('reach')
+        #
+
+        #
+        # self.solver = HJSolver(self.grid, self.time_frame, self.model)
+        #
+
+        #
+        self.solver_settings = hj.SolverSettings.with_accuracy("high")
+        #
+
         self.peds = []
         self.peds_sub = rospy.Subscriber('sensor/objects', StampedObjectPoseArray, self.peds_cb)
 
@@ -113,12 +143,19 @@ class LTMS(object):
                 self.peds.append((msg.header, obj.pose.pose.position.x, obj.pose.pose.position.y))
 
     def compute_brs(self, target):
-        target = np.concatenate([target[..., np.newaxis]] * len(self.time_frame), axis=-1)
-        return self.solver(target=target, target_mode='min')
+        # target = np.concatenate([target[..., np.newaxis]] * len(self.time_frame), axis=-1)
+        # return self.solver(target=target, target_mode='min')
+    
+        target = shp.make_tube(self.time_frame, target)
+        values = hj.solve(self.solver_settings, self.avoid_dynamics, self.grid,
+                        self.time_frame, target, None)
+        values = np.asarray(values)
+        values = np.flip(values, axis=0)
 
     def verify_state_srv(self, req):
         if self.LOCATION == 'sml':
             map_state = req.state
+            delta = req.delta
 
         # utm_state is either in utm frame or mocap frame, depending on location
         if self.LOCATION == 'kip':
@@ -148,30 +185,64 @@ class LTMS(object):
             # if not req.state.header.frame_id == ped_header.frame_id:
             #     print(f'Warning! vehicle frame not same as pedestrian frame ({req.state.header.frame_id} != {ped_header.frame_id})')
             #     continue
-            if not self.grid.grid_points[0][0] < x < self.grid.grid_points[0][-1]:
+            # if not self.grid.grid_points[0][0] < x < self.grid.grid_points[0][-1]:
+            #     continue
+            # if not self.grid.grid_points[1][0] < y < self.grid.grid_points[1][-1]:
+            #     continue
+            #
+            if not self.grid.coordinate_vectors[0][0] < x < self.grid.coordinate_vectors[0][-1]:
                 continue
-            if not self.grid.grid_points[1][0] < x < self.grid.grid_points[1][-1]:
+            if not self.grid.coordinate_vectors[1][0] < y < self.grid.coordinate_vectors[1][-1]:
                 continue
-            ped = intersection(lower_half_space(self.grid, 0, x + self.PADDING), 
-                               upper_half_space(self.grid, 0, x - self.PADDING),
-                               lower_half_space(self.grid, 1, y + self.PADDING), 
-                               upper_half_space(self.grid, 1, y - self.PADDING))
+            #
+
+            #
+            # ped = intersection(lower_half_space(self.grid, 0, x + self.PADDING), 
+            #                    upper_half_space(self.grid, 0, x - self.PADDING),
+            #                    lower_half_space(self.grid, 1, y + self.PADDING), 
+            #                    upper_half_space(self.grid, 1, y - self.PADDING))
+            # peds.append(ped)
+            #
+
+            #
+            ped = shp.intersection(shp.lower_half_space(self.grid, 0, x + self.PADDING), 
+                               shp.upper_half_space(self.grid, 0, x - self.PADDING),
+                               shp.lower_half_space(self.grid, 1, y + self.PADDING), 
+                               shp.upper_half_space(self.grid, 1, y - self.PADDING))
             peds.append(ped)
+            #
             
             print('ped distance:', np.hypot(x - map_state.x, y - map_state.y),
                   'ped:', (x, y), 
                   'svea:', (map_state.x, map_state.y))
 
-        target = union(*peds) if peds else np.ones(self.grid.shape)
+        #
+        # target = union(*peds) if peds else np.ones(self.grid.shape)
+        #
+        target = shp.union(*peds) if peds else np.ones(self.grid.shape)
+        #
 
         result = self.compute_brs(target=target)
-        result = -result.min(axis=-1)
+        #
+        # result = -result.min(axis=(0,3,4,5)) # -shp.project_onto(vf, 1, 2)
+        #
+        result = -shp.project_onto(result, 1, 2)
+        #
 
-        ix = np.abs(self.grid.grid_points[0] - map_state.x).argmin()
-        iy = np.abs(self.grid.grid_points[1] - map_state.y).argmin()
-        iyaw = np.abs(self.grid.grid_points[2] - map_state.yaw).argmin()
-        ivel = np.abs(self.grid.grid_points[3] - map_state.v).argmin()
-        ok = bool(result[ix, iy, iyaw, ivel] <= 0)
+        #
+        # ix = np.abs(self.grid.grid_points[0] - map_state.x).argmin()
+        # iy = np.abs(self.grid.grid_points[1] - map_state.y).argmin()
+        # iyaw = np.abs(self.grid.grid_points[2] - map_state.yaw).argmin()
+        # ivel = np.abs(self.grid.grid_points[3] - map_state.v).argmin()
+        # ok = bool(result[ix, iy, iyaw, ivel] <= 0)
+        #
+        ix = np.abs(self.grid.coordinate_vectors[0] - map_state.x).argmin()
+        iy = np.abs(self.grid.coordinate_vectors[1] - map_state.y).argmin()
+        iyaw = np.abs(self.grid.coordinate_vectors[2] - map_state.yaw).argmin()
+        id = np.abs(self.grid.coordinate_vectors[3] - delta).argmin()
+        ivel = np.abs(self.grid.coordinate_vectors[4] - map_state.v).argmin()
+        ok = bool(result[ix, iy, iyaw, id, ivel] <= 0)
+        #
 
         return VerifyStateResponse(ok=ok)
 
@@ -185,7 +256,17 @@ class LTMS(object):
         return not rospy.is_shutdown()
 
     def run(self):
-        rospy.spin()
+        rate = rospy.Rate(0.2)
+        target = shp.intersection(shp.lower_half_space(self.grid, 0, 0 + self.PADDING), 
+                            shp.upper_half_space(self.grid, 0, 0 - self.PADDING),
+                            shp.lower_half_space(self.grid, 1, 0 + self.PADDING), 
+                            shp.upper_half_space(self.grid, 1, 0 - self.PADDING))
+        while True:
+            result = self.compute_brs(target=target)
+            result = -shp.project_onto(result, 1, 2)
+
+            rate.Sleep()
+        # rospy.spin()
 
 
 if __name__ == '__main__':
