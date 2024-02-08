@@ -15,6 +15,8 @@ import tf2_geometry_msgs
 from tf import transformations 
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
+import jax.numpy as jnp
+
 import hj_reachability as hj
 import hj_reachability.shapes as shp
 
@@ -74,7 +76,9 @@ class LTMS(object):
         self.grid = hj.Grid.from_lattice_parameters_and_boundary_conditions(hj.sets.Box(min_bounds, max_bounds),
                                                                (31, 31, 13, 7, 7),
                                                                periodic_dims=2)
-
+        
+        self.coordinate_vectors = list(self.grid.coordinate_vectors)
+        self.coordinate_vectors[2] = jnp.roll(self.coordinate_vectors[2], int(13/2))
 
         horizon = 2
         t_step = 0.2
@@ -145,9 +149,9 @@ class LTMS(object):
             # if not req.state.header.frame_id == ped_header.frame_id:
             #     print(f'Warning! vehicle frame not same as pedestrian frame ({req.state.header.frame_id} != {ped_header.frame_id})')
             #     continue
-            if not self.grid.coordinate_vectors[0][0] < x < self.grid.coordinate_vectors[0][-1]:
+            if not self.coordinate_vectors[0][0] < x < self.coordinate_vectors[0][-1]:
                 continue
-            if not self.grid.coordinate_vectors[1][0] < y < self.grid.coordinate_vectors[1][-1]:
+            if not self.coordinate_vectors[1][0] < y < self.coordinate_vectors[1][-1]:
                 continue
 
             ped = shp.intersection(shp.lower_half_space(self.grid, 0, x + self.PADDING), 
@@ -165,19 +169,12 @@ class LTMS(object):
         result = self.compute_brs(target)
         result = -result.min(axis=0)
 
-        ix = np.abs(self.grid.coordinate_vectors[0] - map_state.x).argmin()
-        iy = np.abs(self.grid.coordinate_vectors[1] - map_state.y).argmin()
-        iyaw = np.abs(self.grid.coordinate_vectors[2]-pi - map_state.yaw).argmin()
-        id = np.abs(self.grid.coordinate_vectors[3] - delta).argmin()
-        ivel = np.abs(self.grid.coordinate_vectors[4] - map_state.v).argmin()
+        ix = np.abs(self.coordinate_vectors[0] - map_state.x).argmin()
+        iy = np.abs(self.coordinate_vectors[1] - map_state.y).argmin()
+        iyaw = np.abs(self.coordinate_vectors[2] - map_state.yaw).argmin()
+        id = np.abs(self.coordinate_vectors[3] - delta).argmin()
+        ivel = np.abs(self.coordinate_vectors[4] - map_state.v).argmin()
         ok = bool(result[ix, iy, iyaw, id, ivel] <= 0)
-        # print(np.argmax(result[ix,iy,...], keepdims=True))
-        # ok = bool(np.max(result[ix, iy, ...]) <= 0)
-        # j,k,l = np.unravel_index(np.argmax(result[ix, iy, ...]), result[ix, iy, ...].shape)
-        print(self.grid.coordinate_vectors[0][ix], self.grid.coordinate_vectors[1][iy])
-        print(self.grid.coordinate_vectors[2], iyaw)
-        # print(ok, (j,k,l))
-        # print(result[ix, iy, ...].max(axis=(1,2)))
 
         return VerifyStateResponse(ok=ok)
 
@@ -191,77 +188,78 @@ class LTMS(object):
         return not rospy.is_shutdown()
 
     def run(self):
-        from nav_msgs.msg import OccupancyGrid
-        from geometry_msgs.msg import PointStamped
-        rate = rospy.Rate(0.1)
-        pub_ped = rospy.Publisher('/peds', OccupancyGrid, queue_size=1)
-        pub_reach = rospy.Publisher('/reachability', OccupancyGrid, queue_size=1)
-        pub_state = rospy.Publisher('/state', PointStamped, queue_size=1)   
-        target = shp.intersection(shp.lower_half_space(self.grid, 0, 0 + self.PADDING), 
-                                  shp.upper_half_space(self.grid, 0, 0 - self.PADDING),
-                                  shp.lower_half_space(self.grid, 1, 0 + self.PADDING), 
-                                  shp.upper_half_space(self.grid, 1, 0 - self.PADDING))
-        self.peds = [(0,0,0)]
-        result = self.compute_brs(target)
-        result_projected = -shp.project_onto(result, 1, 2)
-        result = -result.min(axis=0)
+        # from nav_msgs.msg import OccupancyGrid
+        # from geometry_msgs.msg import PointStamped
+        # rate = rospy.Rate(0.1)
+        # pub_ped = rospy.Publisher('/peds', OccupancyGrid, queue_size=1)
+        # pub_reach = rospy.Publisher('/reachability', OccupancyGrid, queue_size=1)
+        # pub_state = rospy.Publisher('/state', PointStamped, queue_size=1)   
+        # target = shp.intersection(shp.lower_half_space(self.grid, 0, 0 + self.PADDING), 
+        #                           shp.upper_half_space(self.grid, 0, 0 - self.PADDING),
+        #                           shp.lower_half_space(self.grid, 1, 0 + self.PADDING), 
+        #                           shp.upper_half_space(self.grid, 1, 0 - self.PADDING))
+        # self.peds = [(0,0,0)]
+        # result = self.compute_brs(target)
+        # result_projected = -shp.project_onto(result, 1, 2)
+        # result = -result.min(axis=0)
 
-        req = Req()
+        # req = Req()
 
-        state_msg = PointStamped()
-        state_msg.header.frame_id = "map"
-        state_msg.point.z = 0
+        # state_msg = PointStamped()
+        # state_msg.header.frame_id = "map"
+        # state_msg.point.z = 0
 
-        msg = OccupancyGrid()
-        msg.header.frame_id = "map"
-        msg.header.stamp = rospy.Time.now()
-        # reach_set = np.asarray(result_projected <= 0, dtype=np.int8).T.flatten()*100
-        target_set = np.asarray(shp.project_onto(target, 0, 1) <= 0, dtype=np.int8).T.flatten()*100
-        msg.info.resolution = 4.0/31
-        msg.info.width = 31
-        msg.info.height = 31
-        msg.info.origin.position.x = -2.0
-        msg.info.origin.position.y = -2.0
+        # msg = OccupancyGrid()
+        # msg.header.frame_id = "map"
+        # msg.header.stamp = rospy.Time.now()
+        # # reach_set = np.asarray(result_projected <= 0, dtype=np.int8).T.flatten()*100
+        # target_set = np.asarray(shp.project_onto(target, 0, 1) <= 0, dtype=np.int8).T.flatten()*100
+        # msg.info.resolution = 4.0/31
+        # msg.info.width = 31
+        # msg.info.height = 31
+        # msg.info.origin.position.x = -2.0
+        # msg.info.origin.position.y = -2.0
 
-        while req.state.x <= 0:
-            ix = np.abs(self.grid.coordinate_vectors[0] - req.state.x).argmin()
-            iy = np.abs(self.grid.coordinate_vectors[1] - req.state.y).argmin()
-            print(result[ix, iy, ...].max(axis=(1,2)))
-            msg.header.stamp = rospy.Time.now()
-            msg.data = target_set
-            pub_ped.publish(msg)
-            iyaw = np.abs(self.grid.coordinate_vectors[2]+pi - req.state.yaw).argmin()
-            id = np.abs(self.grid.coordinate_vectors[3] - req.delta).argmin()
-            ivel = np.abs(self.grid.coordinate_vectors[4] - req.state.v).argmin()
-            msg.data = np.asarray(result[:,:,iyaw,id,ivel] <= 0, dtype=np.int8).T.flatten()*100
-            pub_reach.publish(msg)
-            print(req.state.yaw)
+        # while req.state.x <= 0:
+        #     ix = np.abs(self.coordinate_vectors[0] - req.state.x).argmin()
+        #     iy = np.abs(self.coordinate_vectors[1] - req.state.y).argmin()
+        #     print(result[ix, iy, ...].max(axis=(1,2)))
+        #     msg.header.stamp = rospy.Time.now()
+        #     msg.data = target_set
+        #     pub_ped.publish(msg)
+        #     iyaw = np.abs(self.coordinate_vectors[2] - req.state.yaw).argmin()
+        #     id = np.abs(self.coordinate_vectors[3] - req.delta).argmin()
+        #     ivel = np.abs(self.coordinate_vectors[4] - req.state.v).argmin()
+        #     print((iyaw,id,ivel), self.coordinate_vectors[2])
+        #     msg.data = np.asarray(result[:,:,iyaw,id,ivel] <= 0, dtype=np.int8).T.flatten()*100
+        #     pub_reach.publish(msg)
+        #     print(req.state.yaw)
 
-            print(self.verify_state_srv(req))
-            state_msg.header.stamp = rospy.Time.now()
-            state_msg.point.x = req.state.x
-            state_msg.point.y = req.state.y
-            pub_state.publish(state_msg)
-            req.next(0.2)
-            rate.sleep()
-        # rospy.spin()
+        #     print(self.verify_state_srv(req))
+        #     state_msg.header.stamp = rospy.Time.now()
+        #     state_msg.point.x = req.state.x
+        #     state_msg.point.y = req.state.y
+        #     pub_state.publish(state_msg)
+        #     req.next(0.2)
+        #     rate.sleep()
+        rospy.spin()
 
-class State(object):
-    def __init__(self):
-        self.x = -1.5
-        self.y = 0
-        self.yaw = 0
-        self.v = 0.8
+# class State(object):
+#     def __init__(self):
+#         self.x = -1
+#         self.y = -1
+#         self.yaw = pi/4
+#         self.v = 0.8
 
-class Req(object):
-    def __init__(self):
-        self.state = State()
-        self.delta = 0
+# class Req(object):
+#     def __init__(self):
+#         self.state = State()
+#         self.delta = 0
 
-    def next(self, val):
-        self.state.x += val
-        # self.state.y += -val
-        self.state.yaw += pi/8
+#     def next(self, val):
+#         self.state.x += val
+#         self.state.y += val
+#         # self.state.yaw += pi/8
 
 if __name__ == '__main__':
 
