@@ -15,12 +15,6 @@ import tf2_geometry_msgs
 from tf import transformations 
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
-#
-# from odp.shapes import *
-# from odp.solver import HJSolver 
-# from odp.spect import Grid, SVEA
-#
-
 import hj_reachability as hj
 import hj_reachability.shapes as shp
 
@@ -75,15 +69,6 @@ class LTMS(object):
 
         self.LOCATION = load_param('~location', 'kip')
 
-        #
-        # grid = Grid('X Y YAW VEL'.split(),
-        #             [+2.0, +2.0, +pi, +0.8],
-        #             [-2.0, -2.0, -pi, +0.3],
-        #             [31, 31, 13, 7],
-        #             [False, False, True, False])
-        # self.grid = grid._grid 
-        #
-
         max_bounds = np.array([+2.0, +2.0, +pi, +pi/5, +0.8])
         min_bounds = np.array([-2.0, -2.0, -pi, -pi/5, +0.3])
         self.grid = hj.Grid.from_lattice_parameters_and_boundary_conditions(hj.sets.Box(min_bounds, max_bounds),
@@ -96,34 +81,12 @@ class LTMS(object):
         small_number = 1e-5
         self.time_frame = np.arange(start=0, stop=horizon + small_number, step=t_step)
 
-        #
-        # model_settings = {'uMin': [-pi/5, -0.2],
-        #                   'uMax': [+pi/5, +0.2],
-        #                   'dMin': [0.0, 0.0, 0.0, 0.0],
-        #                   'dMax': [0.0, 0.0, 0.0, 0.0]}
-    
-
-        # self.model = SVEA(ctrl_range=[model_settings['uMin'],
-        #                               model_settings['uMax']],
-        #                   dstb_range=[model_settings['dMin'],
-        #                               model_settings['dMax']],
-        #                   mode='reach')
-        #
-
-        # 
         self.avoid_dynamics = hj.systems.SVEA5D(min_steer=-pi/5, 
                                    max_steer=+pi/5,
                                    min_accel=-0.2,
-                                   max_accel=+0.2).with_mode('reach')
-        #
+                                   max_accel=+0.2).with_mode('reach') # 'reach' for demonstration purposes because the avoid set is very small
 
-        #
-        # self.solver = HJSolver(self.grid, self.time_frame, self.model)
-        #
-
-        #
-        self.solver_settings = hj.SolverSettings.with_accuracy("high")
-        #
+        self.solver_settings = hj.SolverSettings.with_accuracy("low")
 
         self.peds = []
         self.peds_sub = rospy.Subscriber('sensor/objects', StampedObjectPoseArray, self.peds_cb)
@@ -143,14 +106,11 @@ class LTMS(object):
                 self.peds.append((msg.header, obj.pose.pose.position.x, obj.pose.pose.position.y))
 
     def compute_brs(self, target):
-        # target = np.concatenate([target[..., np.newaxis]] * len(self.time_frame), axis=-1)
-        # return self.solver(target=target, target_mode='min')
-    
         target = shp.make_tube(self.time_frame, target)
         values = hj.solve(self.solver_settings, self.avoid_dynamics, self.grid,
                         self.time_frame, target, None)
         values = np.asarray(values)
-        values = np.flip(values, axis=0)
+        return np.flip(values, axis=0)
 
     def verify_state_srv(self, req):
         if self.LOCATION == 'sml':
@@ -185,64 +145,39 @@ class LTMS(object):
             # if not req.state.header.frame_id == ped_header.frame_id:
             #     print(f'Warning! vehicle frame not same as pedestrian frame ({req.state.header.frame_id} != {ped_header.frame_id})')
             #     continue
-            # if not self.grid.grid_points[0][0] < x < self.grid.grid_points[0][-1]:
-            #     continue
-            # if not self.grid.grid_points[1][0] < y < self.grid.grid_points[1][-1]:
-            #     continue
-            #
             if not self.grid.coordinate_vectors[0][0] < x < self.grid.coordinate_vectors[0][-1]:
                 continue
             if not self.grid.coordinate_vectors[1][0] < y < self.grid.coordinate_vectors[1][-1]:
                 continue
-            #
 
-            #
-            # ped = intersection(lower_half_space(self.grid, 0, x + self.PADDING), 
-            #                    upper_half_space(self.grid, 0, x - self.PADDING),
-            #                    lower_half_space(self.grid, 1, y + self.PADDING), 
-            #                    upper_half_space(self.grid, 1, y - self.PADDING))
-            # peds.append(ped)
-            #
-
-            #
             ped = shp.intersection(shp.lower_half_space(self.grid, 0, x + self.PADDING), 
                                shp.upper_half_space(self.grid, 0, x - self.PADDING),
                                shp.lower_half_space(self.grid, 1, y + self.PADDING), 
                                shp.upper_half_space(self.grid, 1, y - self.PADDING))
             peds.append(ped)
-            #
             
             print('ped distance:', np.hypot(x - map_state.x, y - map_state.y),
                   'ped:', (x, y), 
                   'svea:', (map_state.x, map_state.y))
 
-        #
-        # target = union(*peds) if peds else np.ones(self.grid.shape)
-        #
         target = shp.union(*peds) if peds else np.ones(self.grid.shape)
-        #
 
-        result = self.compute_brs(target=target)
-        #
-        # result = -result.min(axis=(0,3,4,5)) # -shp.project_onto(vf, 1, 2)
-        #
-        result = -shp.project_onto(result, 1, 2)
-        #
+        result = self.compute_brs(target)
+        result = -result.min(axis=0)
 
-        #
-        # ix = np.abs(self.grid.grid_points[0] - map_state.x).argmin()
-        # iy = np.abs(self.grid.grid_points[1] - map_state.y).argmin()
-        # iyaw = np.abs(self.grid.grid_points[2] - map_state.yaw).argmin()
-        # ivel = np.abs(self.grid.grid_points[3] - map_state.v).argmin()
-        # ok = bool(result[ix, iy, iyaw, ivel] <= 0)
-        #
         ix = np.abs(self.grid.coordinate_vectors[0] - map_state.x).argmin()
         iy = np.abs(self.grid.coordinate_vectors[1] - map_state.y).argmin()
-        iyaw = np.abs(self.grid.coordinate_vectors[2] - map_state.yaw).argmin()
+        iyaw = np.abs(self.grid.coordinate_vectors[2]-pi - map_state.yaw).argmin()
         id = np.abs(self.grid.coordinate_vectors[3] - delta).argmin()
         ivel = np.abs(self.grid.coordinate_vectors[4] - map_state.v).argmin()
         ok = bool(result[ix, iy, iyaw, id, ivel] <= 0)
-        #
+        # print(np.argmax(result[ix,iy,...], keepdims=True))
+        # ok = bool(np.max(result[ix, iy, ...]) <= 0)
+        # j,k,l = np.unravel_index(np.argmax(result[ix, iy, ...]), result[ix, iy, ...].shape)
+        print(self.grid.coordinate_vectors[0][ix], self.grid.coordinate_vectors[1][iy])
+        print(self.grid.coordinate_vectors[2], iyaw)
+        # print(ok, (j,k,l))
+        # print(result[ix, iy, ...].max(axis=(1,2)))
 
         return VerifyStateResponse(ok=ok)
 
@@ -256,18 +191,77 @@ class LTMS(object):
         return not rospy.is_shutdown()
 
     def run(self):
-        rate = rospy.Rate(0.2)
+        from nav_msgs.msg import OccupancyGrid
+        from geometry_msgs.msg import PointStamped
+        rate = rospy.Rate(0.1)
+        pub_ped = rospy.Publisher('/peds', OccupancyGrid, queue_size=1)
+        pub_reach = rospy.Publisher('/reachability', OccupancyGrid, queue_size=1)
+        pub_state = rospy.Publisher('/state', PointStamped, queue_size=1)   
         target = shp.intersection(shp.lower_half_space(self.grid, 0, 0 + self.PADDING), 
-                            shp.upper_half_space(self.grid, 0, 0 - self.PADDING),
-                            shp.lower_half_space(self.grid, 1, 0 + self.PADDING), 
-                            shp.upper_half_space(self.grid, 1, 0 - self.PADDING))
-        while True:
-            result = self.compute_brs(target=target)
-            result = -shp.project_onto(result, 1, 2)
+                                  shp.upper_half_space(self.grid, 0, 0 - self.PADDING),
+                                  shp.lower_half_space(self.grid, 1, 0 + self.PADDING), 
+                                  shp.upper_half_space(self.grid, 1, 0 - self.PADDING))
+        self.peds = [(0,0,0)]
+        result = self.compute_brs(target)
+        result_projected = -shp.project_onto(result, 1, 2)
+        result = -result.min(axis=0)
 
-            rate.Sleep()
+        req = Req()
+
+        state_msg = PointStamped()
+        state_msg.header.frame_id = "map"
+        state_msg.point.z = 0
+
+        msg = OccupancyGrid()
+        msg.header.frame_id = "map"
+        msg.header.stamp = rospy.Time.now()
+        # reach_set = np.asarray(result_projected <= 0, dtype=np.int8).T.flatten()*100
+        target_set = np.asarray(shp.project_onto(target, 0, 1) <= 0, dtype=np.int8).T.flatten()*100
+        msg.info.resolution = 4.0/31
+        msg.info.width = 31
+        msg.info.height = 31
+        msg.info.origin.position.x = -2.0
+        msg.info.origin.position.y = -2.0
+
+        while req.state.x <= 0:
+            ix = np.abs(self.grid.coordinate_vectors[0] - req.state.x).argmin()
+            iy = np.abs(self.grid.coordinate_vectors[1] - req.state.y).argmin()
+            print(result[ix, iy, ...].max(axis=(1,2)))
+            msg.header.stamp = rospy.Time.now()
+            msg.data = target_set
+            pub_ped.publish(msg)
+            iyaw = np.abs(self.grid.coordinate_vectors[2]+pi - req.state.yaw).argmin()
+            id = np.abs(self.grid.coordinate_vectors[3] - req.delta).argmin()
+            ivel = np.abs(self.grid.coordinate_vectors[4] - req.state.v).argmin()
+            msg.data = np.asarray(result[:,:,iyaw,id,ivel] <= 0, dtype=np.int8).T.flatten()*100
+            pub_reach.publish(msg)
+            print(req.state.yaw)
+
+            print(self.verify_state_srv(req))
+            state_msg.header.stamp = rospy.Time.now()
+            state_msg.point.x = req.state.x
+            state_msg.point.y = req.state.y
+            pub_state.publish(state_msg)
+            req.next(0.2)
+            rate.sleep()
         # rospy.spin()
 
+class State(object):
+    def __init__(self):
+        self.x = -1.5
+        self.y = 0
+        self.yaw = 0
+        self.v = 0.8
+
+class Req(object):
+    def __init__(self):
+        self.state = State()
+        self.delta = 0
+
+    def next(self, val):
+        self.state.x += val
+        # self.state.y += -val
+        self.state.yaw += pi/8
 
 if __name__ == '__main__':
 
