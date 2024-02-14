@@ -27,7 +27,8 @@ RUN rosdep install \
         --ignore-src \
         -qry \
         && \
-    pip install --ignore-installed -r requirements.txt
+    pip install --ignore-installed -r requirements.txt && \ 
+    pip install -U --force-reinstall "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 # Run catkin build on workspace (improves build speeds later on).
 RUN catkin build

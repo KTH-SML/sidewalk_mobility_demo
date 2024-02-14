@@ -21,6 +21,9 @@ istrue DEBUG && fn="echo" || fn="exec"
     -v "/dev:/dev" \
     -v "$SHARED_VOLUME" \
     --rm \
-    --network host \
+    -p 11311:11311 \
+    -p 8765:8765 \
+    --network demo \
     --privileged \
+    --gpus all \
     "$@"

@@ -2,9 +2,10 @@
 <launch>
     
     <!-- Launch file arguments -->
-    <arg name="name"        default="ltms"/>
-    <arg name="nats"        default="true"/>
-    <arg name="location"    default="sml"/>
+    <arg name="name"         default="ltms"/>
+    <arg name="nats"         default="true"/>
+    <arg name="location"     default="sml"/>
+    <arg name="use_foxglove" default="true"/>
 
     <include if="$(eval location =='kip')" file="$(find aug_demo)/launch/broadcast_sensor.launch"/>
 
@@ -26,5 +27,13 @@
         location: $(arg location)
         </rosparam>
     </node>
+
+    <!-- Start Foxglove -->
+    <include if="$(eval use_foxglove)" file="$(find foxglove_bridge)/launch/foxglove_bridge.launch">
+        <arg name="port" value="8765"/>
+    </include>
+
+    <arg name="map" value="sml"/>
+    <node if="$(eval location == 'sml')" name="map_server" pkg="map_server" type="map_server" args="$(find svea_core)/maps/$(arg map).yaml" output="screen"/>
 
 </launch>

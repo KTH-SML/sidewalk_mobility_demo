@@ -6,7 +6,6 @@ scipy
 casadi==3.5.5
 nats-py
 flax>=0.6.6
-jax>=0.4.2
 numpy>=1.18.0
 matplotlib
 plotly

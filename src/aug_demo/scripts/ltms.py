@@ -16,6 +16,7 @@ from tf import transformations
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 import jax.numpy as jnp
+from nav_msgs.msg import OccupancyGrid
 
 import hj_reachability as hj
 import hj_reachability.shapes as shp
@@ -60,7 +61,7 @@ def load_param(name, value=None):
 
 class LTMS(object):
 
-    PADDING = 0.6
+    PADDING = 0.4
 
     DEMO_AREA_CENTER = (-2.5, 0) # x, y from sensor_map
 
@@ -71,16 +72,27 @@ class LTMS(object):
 
         self.LOCATION = load_param('~location', 'kip')
 
-        max_bounds = np.array([+2.0, +2.0, +pi, +pi/5, +0.8])
-        min_bounds = np.array([-2.0, -2.0, -pi, -pi/5, +0.3])
+        center = [0.0, -1.5]
+        max_bounds = np.array([center[0] + 2.0, center[1] + 2.0, +pi, +pi/5, +0.8])
+        min_bounds = np.array([center[0] - 2.0, center[1] - 2.0, -pi, -pi/5, +0.3])
         self.grid = hj.Grid.from_lattice_parameters_and_boundary_conditions(hj.sets.Box(min_bounds, max_bounds),
-                                                               (31, 31, 13, 7, 7),
+                                                               (31, 31, 13, 3, 7),
                                                                periodic_dims=2)
         
         self.coordinate_vectors = list(self.grid.coordinate_vectors)
         self.coordinate_vectors[2] = jnp.roll(self.coordinate_vectors[2], int(13/2))
 
-        horizon = 2
+        self.occupancy_pub = rospy.Publisher('/occupancy_grid', OccupancyGrid, queue_size=1)
+        msg = OccupancyGrid()
+        msg.header.frame_id = "map"
+        msg.info.resolution = 4.0/31
+        msg.info.width = 31
+        msg.info.height = 31
+        msg.info.origin.position.x = min_bounds[0]
+        msg.info.origin.position.y = min_bounds[0]
+        self.occupancy_msg = msg
+
+        horizon = 2.6
         t_step = 0.2
         small_number = 1e-5
         self.time_frame = np.arange(start=0, stop=horizon + small_number, step=t_step)
@@ -133,7 +145,6 @@ class LTMS(object):
             map_state.x += self.DEMO_AREA_CENTER[0]
             map_state.y += self.DEMO_AREA_CENTER[1]
 
-
             map_state.x += -0.16803447571899888 -  -1.7746380530297756
             map_state.y += +0.7996012858407618 - 1.850046221166849
             
@@ -141,6 +152,7 @@ class LTMS(object):
 
         peds = []
         for ped_header, x, y in self.peds:
+            # print("Pedestrian at: ", (x, y))
             
             if self.LOCATION == 'kip':
                 x += self.DEMO_AREA_CENTER[0]
@@ -175,6 +187,10 @@ class LTMS(object):
         id = np.abs(self.coordinate_vectors[3] - delta).argmin()
         ivel = np.abs(self.coordinate_vectors[4] - map_state.v).argmin()
         ok = bool(result[ix, iy, iyaw, id, ivel] <= 0)
+
+        self.occupancy_msg.header.stamp = rospy.Time.now()
+        self.occupancy_msg.data = np.asarray(np.flip(result[:,:,iyaw,id,ivel] <= 0, axis=0), dtype=np.int8).flatten()*100
+        self.occupancy_pub.publish(self.occupancy_msg)
 
         return VerifyStateResponse(ok=ok)
 
@@ -223,17 +239,17 @@ class LTMS(object):
         # while req.state.x <= 0:
         #     ix = np.abs(self.coordinate_vectors[0] - req.state.x).argmin()
         #     iy = np.abs(self.coordinate_vectors[1] - req.state.y).argmin()
-        #     print(result[ix, iy, ...].max(axis=(1,2)))
+        #     # print(result[ix, iy, ...].max(axis=(1,2)))
         #     msg.header.stamp = rospy.Time.now()
         #     msg.data = target_set
         #     pub_ped.publish(msg)
         #     iyaw = np.abs(self.coordinate_vectors[2] - req.state.yaw).argmin()
         #     id = np.abs(self.coordinate_vectors[3] - req.delta).argmin()
         #     ivel = np.abs(self.coordinate_vectors[4] - req.state.v).argmin()
-        #     print((iyaw,id,ivel), self.coordinate_vectors[2])
+        #     # print((iyaw,id,ivel), self.coordinate_vectors[2])
         #     msg.data = np.asarray(result[:,:,iyaw,id,ivel] <= 0, dtype=np.int8).T.flatten()*100
         #     pub_reach.publish(msg)
-        #     print(req.state.yaw)
+        #     # print(req.state.yaw)
 
         #     print(self.verify_state_srv(req))
         #     state_msg.header.stamp = rospy.Time.now()
@@ -242,24 +258,31 @@ class LTMS(object):
         #     pub_state.publish(state_msg)
         #     req.next(0.2)
         #     rate.sleep()
+
+        # rate = rospy.Rate(1)
+        # req = Req()
+        # while self.keep_alive():
+        #     print(self.verify_state_srv(req))
+        #     req.next(0.01)
+        #     rate.sleep()
         rospy.spin()
 
-# class State(object):
-#     def __init__(self):
-#         self.x = -1
-#         self.y = -1
-#         self.yaw = pi/4
-#         self.v = 0.8
+class State(object):
+    def __init__(self):
+        self.x = -2
+        self.y = -2
+        self.yaw = pi/4
+        self.v = 0.8
 
-# class Req(object):
-#     def __init__(self):
-#         self.state = State()
-#         self.delta = 0
+class Req(object):
+    def __init__(self):
+        self.state = State()
+        self.delta = 0
 
-#     def next(self, val):
-#         self.state.x += val
-#         self.state.y += val
-#         # self.state.yaw += pi/8
+    def next(self, val):
+        self.state.x += val
+        self.state.y += val
+        # self.state.yaw += pi/8
 
 if __name__ == '__main__':
 
